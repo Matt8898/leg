@@ -1,10 +1,13 @@
 module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_buf [128:0]);
     //general processor control
     logic stall;
+    logic split_bundle;
 
     logic [31:0] upc;
     logic upc_write;
     logic [31:0] upc_write_value;
+
+    logic clear_fetch_pipeline;
 
     always @(posedge clk) begin
         if(reset) begin
@@ -12,6 +15,8 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
             stall <= 0;
             upc_write <= 0;
             upc_write_value <= 0;
+            split_bundle <= 0;
+            clear_fetch_pipeline <= 0;
         end
         if(!stall) begin
             if(reset) begin
@@ -21,62 +26,106 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                 upc_write_value <= 0;
                 upc_write <= 0;
             end else begin
-                upc <= upc + 1;
+                if(split_bundle) begin
+                    $display("split");
+                    upc <= upc - 1;
+                    split_bundle <= 0;
+                end else begin
+                    upc <= upc + 2;
+                end
             end
         end
     end
 
     //fetch stage
-    logic [31:0] instruction;
-    logic [31:0] fetched_instruction;
-    assign instruction = uop_buf[upc];
+    logic [31:0] instruction[2:0];
+    logic [31:0] fetched_instruction[1:0];
 
-    pipeline_reg #(32) fetch_reg(clk, reset, !stall, clear_fetch_pipeline, instruction, fetched_instruction);
+    always @(posedge clk) begin
+        if(!clear_fetch_pipeline) begin
+            if(!split_bundle) begin
+                fetched_instruction[0] <= uop_buf[upc];
+                fetched_instruction[1] <= uop_buf[upc + 1];
+            end else begin
+                fetched_instruction[0] <= 0;
+                fetched_instruction[1] <= 0;
+            end
+        end else begin
+            fetched_instruction[0] <= 0;
+            fetched_instruction[1] <= 0;
+            clear_fetch_pipeline <= 0;
+        end
+
+
+        if(instruction[0] != 0)
+            $display("instrs: %x %x", instruction[0], instruction[1]);
+    end
+
+
+//    pipeline_reg #(32) fetch_reg1(clk, reset, !stall, clear_fetch_pipeline, instruction[0], fetched_instruction[0]);
+//    pipeline_reg #(32) fetch_reg2(clk, reset, !stall, clear_fetch_pipeline, instruction[1], fetched_instruction[1]);
 
     //decode stage
-    logic [5:0] operation;
-    logic [4:0] register_target;
-    logic [4:0] register_1;
-    logic [4:0] register_2;
-    logic [25:0] jump_offset;
-    logic [10:0] sub_field;
-    logic [15:0] immediate;
-    logic [3:0]  rs_station;
-    logic [5:0]  alu_fn;
-    logic has_register_1;
-    logic has_register_2;
-    logic has_target;
-    logic [31:0] decoded_instruction;
+    logic [5:0] operation[1:0];
+    logic [4:0] register_target[1:0];
+    logic [4:0] register_1[1:0];
+    logic [4:0] register_2[1:0];
+    logic [25:0] jump_offset[1:0];
+    logic [10:0] sub_field[1:0];
+    logic [15:0] immediate[1:0];
+    logic [3:0]  rs_station[1:0];
+    logic [5:0]  alu_fn[1:0];
+    logic has_register_1[1:0];
+    logic has_register_2[1:0];
+    logic has_target[1:0];
+    logic [31:0] decoded_instruction[1:0];
 
-    logic instr_type_p;
-    logic [5:0] operation_p;
-    logic [4:0] register_target_p;
-    logic [4:0] register_1_p;
-    logic [4:0] register_2_p;
-    logic [25:0] jump_offset_p;
-    logic [10:0] sub_field_p;
-    logic [15:0] immediate_p;
-    logic [3:0]  rs_station_p;
-    logic [5:0]  alu_fn_p;
-    logic has_register_1_p;
-    logic has_register_2_p;
-    logic has_target_p;
+    logic instr_type_p[1:0];
+    logic [5:0] operation_p[1:0];
+    logic [4:0] register_target_p[1:0];
+    logic [4:0] register_1_p[1:0];
+    logic [4:0] register_2_p[1:0];
+    logic [25:0] jump_offset_p[1:0];
+    logic [10:0] sub_field_p[1:0];
+    logic [15:0] immediate_p[1:0];
+    logic [3:0]  rs_station_p[1:0];
+    logic [5:0]  alu_fn_p[1:0];
+    logic has_register_1_p[1:0];
+    logic has_register_2_p[1:0];
+    logic has_target_p[1:0];
+    logic split_bundle_p;
 
-    instruction_decoder idec(fetched_instruction, operation, register_target, register_1, register_2, jump_offset, sub_field, immediate, rs_station, alu_fn, has_register_1, has_register_2, has_target);
-    pipeline_reg #(119) decode_reg(clk, reset, !stall, clear_decode_pipeline,
-        {operation, register_target, register_1, register_2, jump_offset, sub_field, immediate, rs_station, alu_fn, has_register_1, has_register_2, has_target, fetched_instruction},
-        {operation_p, register_target_p, register_1_p, register_2_p, jump_offset_p, sub_field_p, immediate_p, rs_station_p, alu_fn_p, has_register_1_p, has_register_2_p, has_target_p, decoded_instruction});
+    instruction_decoder idec1(fetched_instruction[0],  operation[0],  register_target[0],  register_1[0],  register_2[0],
+        jump_offset[0],  sub_field[0],  immediate[0],  rs_station[0],  alu_fn[0],  has_register_1[0],  has_register_2[0],  has_target[0]);
+    instruction_decoder idec2(fetched_instruction[1],  operation[1],  register_target[1],  register_1[1],  register_2[1],
+        jump_offset[1],  sub_field[1],  immediate[1],  rs_station[1],  alu_fn[1],  has_register_1[1],  has_register_2[1],  has_target[1]);
 
+  pipeline_reg #(119) decode_reg1(clk, reset, !stall, clear_decode_pipeline,
+    {operation[0], register_target[0], register_1[0], register_2[0], jump_offset[0], sub_field[0], immediate[0], rs_station[0], alu_fn[0], has_register_1[0], has_register_2[0], has_target[0], fetched_instruction[0]},
+    {operation_p[0], register_target_p[0], register_1_p[0], register_2_p[0], jump_offset_p[0], sub_field_p[0], immediate_p[0],
+        rs_station_p[0], alu_fn_p[0], has_register_1_p[0], has_register_2_p[0], has_target_p[0], decoded_instruction[0]});
+
+  pipeline_reg #(120) decode_reg2(clk, reset, !stall, clear_decode_pipeline,
+    {operation[1], register_target[1], register_1[1], register_2[1], jump_offset[1], sub_field[1], immediate[1], rs_station[1], alu_fn[1], has_register_1[1], has_register_2[1], has_target[1], fetched_instruction[1], split_bundle},
+    {operation_p[1], register_target_p[1], register_1_p[1], register_2_p[1], jump_offset_p[1], sub_field_p[1], immediate_p[1],
+        rs_station_p[1], alu_fn_p[1], has_register_1_p[1], has_register_2_p[1], has_target_p[1], decoded_instruction[1], split_bundle_p});
+
+    always_comb begin
+        if(rs_station[0] != 0) begin
+            split_bundle = rs_station[0] == rs_station[1];
+        end
+    end
 
     logic out_of_tags;
     logic [8:0] current_phys_reg;
     rat r(clk, reset, out_of_tags);
 
     always @(posedge clk) begin
-//        r.get_tag(current_phys_reg);
-//        $display("Current tag: %x, out: %x", current_phys_reg, out_of_tags);
-        if(rs_station_p != 0) begin
-            $display("upc: %x rs station: %x, r1: %x, r2: %x, rt: %x", upc, rs_station_p, register_1_p, register_2_p, register_target_p);
+        if(rs_station_p[0] != 0) begin
+            $display("instruction 0: %x upc: %x rs station: %x, r1: %x, r2: %x, rt: %x", decoded_instruction[0], upc, rs_station_p[0], register_1_p[0], register_2_p[0], register_target_p[0]);
+        end
+        if(rs_station_p[1] != 0 && !split_bundle_p) begin
+            $display("instruction 1: %x upc: %x rs station: %x, r1: %x, r2: %x, rt: %x", decoded_instruction[1], upc + 1, rs_station_p[1], register_1_p[1], register_2_p[1], register_target_p[1]);
         end
     end
 endmodule

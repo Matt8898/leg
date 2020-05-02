@@ -144,7 +144,7 @@ always_comb begin
     default:
         begin
             rs_station = 0;
-            $display("unknown instruction: %x", op);
+//            $display("unknown instruction: %x", op);
         end
     endcase
 end

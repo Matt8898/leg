@@ -21,6 +21,7 @@ module test;
 
   /* Make a regular pulsing clock. */
   logic clk = 0;
+  logic [31:0] cnt;
   always #5 clk = !clk;
 
   microcode_exec mc(clk, reset, uops);
