@@ -2,6 +2,7 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
     //general processor control
     logic stall;
     logic split_bundle;
+    logic clear_decode_pipeline;
 
     logic [31:0] upc;
     logic upc_write;
