@@ -2,23 +2,23 @@ module tag_fifo(
     input logic clk,
     input logic reset,
 
-    input logic [7:0] write_tag_source,
+    input logic [$clog2(WIDTH):0] write_tag_source,
     input logic write_tag,
-    output logic [7:0] read_tag_dest_0,
-    output logic [7:0] read_tag_dest_1,
+    output logic [$clog2(WIDTH):0] read_tag_dest_0,
+    output logic [$clog2(WIDTH):0] read_tag_dest_1,
     input logic read_1_tag,
     input logic read_2_tags,
 
-    output logic [7:0] freespace,
-    output logic [7:0] num_items
+    output logic [$clog2(WIDTH):0] freespace,
+    output logic [$clog2(WIDTH):0] num_items
 );
 
-logic [7:0] write_ptr;
-logic [7:0] read_ptr;
+logic [$clog2(WIDTH):0] write_ptr;
+logic [$clog2(WIDTH):0] read_ptr;
 
-parameter WIDTH = 5;
+parameter WIDTH = 128;
 
-logic [7:0] data[WIDTH - 1:0];
+logic [$clog2(WIDTH):0] data[WIDTH - 1:0];
 
 assign num_items = (write_ptr > read_ptr) ? (write_ptr - read_ptr) : (write_ptr - read_ptr + WIDTH);
 assign freespace = WIDTH - num_items;
