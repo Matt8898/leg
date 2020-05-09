@@ -31,7 +31,7 @@ always @(posedge clk) begin
         for(int i = 0; i <= WIDTH; i++) begin
             data[i] <= i;
         end
-        write_ptr <= WIDTH;
+        write_ptr <= WIDTH - 1;
         read_ptr <= 0;
     end
     if(read_1_tag) begin
@@ -53,7 +53,7 @@ always @(posedge clk) begin
     end
 
     if(write_tag) begin
-        if(write_ptr != WIDTH) begin
+        if(write_ptr != (WIDTH - 1)) begin
             write_ptr <= write_ptr + 1;
         end else begin
             write_ptr <= 0;
