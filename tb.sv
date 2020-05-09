@@ -24,9 +24,11 @@ module test;
   logic [31:0] cnt;
   always #5 clk = !clk;
 
-  microcode_exec mc(clk, reset, uops);
+  logic clkf;
 
-    logic [7:0] write_tag_source;
+  microcode_exec mc(clk, reset, uops);
+/*
+  logic [7:0] write_tag_source;
     logic write_tag;
     logic [7:0] read_tag_dest_0;
     logic [7:0] read_tag_dest_1;
@@ -34,23 +36,29 @@ module test;
     logic read_2_tags;
 
     logic [7:0] freespace;
+    logic [7:0] num_items;
 
-  tag_fifo fifo(clk, reset, write_tag_source, write_tag, read_tag_dest_0, read_tag_dest_1, read_1_tag, read_2_tags, freespace);
+    tag_fifo fifo(clk, reset, write_tag_source, write_tag, read_tag_dest_0, read_tag_dest_1, read_1_tag, read_2_tags, freespace, num_items);
+ */
+
 
   always @(posedge clk) begin
-	  if(freespace != 126) begin
-		  if(read_1_tag) begin
-			  $display("tag read: %x", read_tag_dest_0);
-			  read_1_tag <= 0;
-		  end else begin
-			  read_1_tag <= 1;
-		  end
-	  end else begin
-		  write_tag <= 1;
-		  write_tag_source <= 5;
-	  end
-	  if(write_tag) begin
+	  /*
+	  if(reset) begin
 		  write_tag <= 0;
+		  read_1_tag <= 0;
+		  read_2_tags <= 0;
 	  end
+	  $display("%x", freespace);
+	  if(freespace != 126) begin
+		  if(!read_2_tags) begin
+			  read_2_tags <= 1;
+		  end
+	  end
+	  if(read_2_tags) begin
+		  $display("read: %x %x", read_tag_dest_0, read_tag_dest_1);
+		  read_2_tags <= 0;
+	  end
+	  */
   end
 endmodule // test

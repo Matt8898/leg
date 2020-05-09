@@ -9,57 +9,51 @@ module tag_fifo(
     input logic read_1_tag,
     input logic read_2_tags,
 
-    output logic [7:0] freespace
+    output logic [7:0] freespace,
+    output logic [7:0] num_items
 );
 
 logic [7:0] write_ptr;
 logic [7:0] read_ptr;
 
-logic [7:0] data[127:0];
+parameter WIDTH = 5;
 
-assign freespace = (write_ptr > read_ptr) ? (127 - write_ptr + read_ptr) : (read_ptr - write_ptr);
+logic [7:0] data[WIDTH - 1:0];
+
+assign num_items = (write_ptr > read_ptr) ? (write_ptr - read_ptr) : (write_ptr - read_ptr + WIDTH);
+assign freespace = WIDTH - num_items;
+
+assign read_tag_dest_0 = data[read_ptr];
+assign read_tag_dest_1 = data[(read_ptr == (WIDTH - 1)) ? (0) : (read_ptr + 1)];
 
 always @(posedge clk) begin
     if(reset) begin
-        for(int i = 0; i < 127; i++) begin
+        for(int i = 0; i <= WIDTH; i++) begin
             data[i] <= i;
         end
-        write_ptr <= 127;
+        write_ptr <= WIDTH;
         read_ptr <= 0;
     end
     if(read_1_tag) begin
-        assert(freespace >= 1);
-        $display("read %x", data[read_ptr]);
-        read_tag_dest_0 <= data[read_ptr];
-        if(read_ptr != 127) begin
+        assert(num_items >= 1);
+        if(read_ptr != (WIDTH - 1)) begin
             read_ptr <= read_ptr + 1;
         end else begin
             read_ptr <= 0;
         end
-    end
-    if(read_2_tags) begin
-        assert(freespace >= 2);
-        $display("read 1 %x", data[read_ptr]);
-        read_tag_dest_0 <= data[read_ptr];
-        if(read_ptr != 126) begin
-            read_tag_dest_1 <= data[read_ptr + 1];
-            $display("read 2 %x", data[read_ptr + 1]);
-            read_ptr <= read_ptr + 2;
+    end else if(read_2_tags) begin
+       assert(num_items >= 2);
+       if(read_ptr == (WIDTH - 1)) begin
+            read_ptr <= 1;
+        end else if(read_ptr == (WIDTH - 2)) begin
+            read_ptr <= 0;
         end else begin
-            if(read_ptr == 126) begin
-                $display("read 2 %x", data[0]);
-                read_tag_dest_1 <= data[0];
-                read_ptr <= 1;
-            end else begin
-                $display("read 2 %x", data[read_ptr + 1]);
-                read_tag_dest_1 <= data[read_ptr + 1];
-                read_ptr <= 0;
-            end
+            read_ptr <= read_ptr + 2;
         end
     end
 
     if(write_tag) begin
-        if(write_ptr != 127) begin
+        if(write_ptr != WIDTH) begin
             write_ptr <= write_ptr + 1;
         end else begin
             write_ptr <= 0;
