@@ -75,7 +75,17 @@ always_comb begin
             immediate = op[15:0];
             alu_fn = 1;//load word
         end
-
+        6'b001111: begin //lui
+            rs_station = 3;
+            register_1 = 0;
+            register_2 = 0;
+            register_target = op[20:16];
+            immediate = op[15:0];
+            has_register_1 = 0;
+            has_register_2 = 0;
+            has_target = 1;
+            alu_fn = 0;
+        end
         6'b0:
         begin
             case (alu_fn)
@@ -133,7 +143,7 @@ always_comb begin
                    has_target = 1;
                    alu_fn = 2;
                 end
-                default: begin
+               default: begin
                     rs_station = 0;
                     has_register_1 = 0;
                     has_register_2 = 0;

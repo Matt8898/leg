@@ -1,4 +1,4 @@
-module tag_fifo(
+module tag_fifo  #(parameter WIDTH = 128) (
     input logic clk,
     input logic reset,
 
@@ -16,7 +16,6 @@ module tag_fifo(
 logic [$clog2(WIDTH):0] write_ptr;
 logic [$clog2(WIDTH):0] read_ptr;
 
-parameter WIDTH = 128;
 
 logic [$clog2(WIDTH):0] data[WIDTH - 1:0];
 

@@ -1,4 +1,7 @@
 module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_buf [128:0]);
+    parameter NUM_PHYS = 128;
+    parameter ARCH_REGS = 32;
+
     //general processor control
     logic stall;
     logic stall_nophys;
@@ -17,17 +20,17 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
      * physical register queue
      */
 
-    logic [7:0] write_tag_source;
+    logic [$clog2(NUM_PHYS):0] write_tag_source;
     logic write_tag;
-    logic [7:0] read_tag_dest_0;
-    logic [7:0] read_tag_dest_1;
+    logic [$clog2(NUM_PHYS):0] read_tag_dest_0;
+    logic [$clog2(NUM_PHYS):0] read_tag_dest_1;
     logic read_1_tag;
     logic read_2_tags;
 
-    logic [7:0] freespace;
-    logic [7:0] num_items;
+    logic [$clog2(NUM_PHYS):0] freespace;
+    logic [$clog2(NUM_PHYS):0] num_items;
 
-    tag_fifo fifo(clk, reset, write_tag_source, write_tag, read_tag_dest_0, read_tag_dest_1, read_1_tag, read_2_tags, freespace, num_items);
+    tag_fifo #(NUM_PHYS) fifo (clk, reset, write_tag_source, write_tag, read_tag_dest_0, read_tag_dest_1, read_1_tag, read_2_tags, freespace, num_items);
     always @(posedge clk) begin
       if(reset) begin
         write_tag <= 0;
@@ -35,6 +38,12 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
         read_2_tags <= 0;
       end
     end
+
+    /*
+     * RAT
+     */
+    //RAT for the currently running state.
+    logic [$clog2(NUM_PHYS):0] current_rat[(ARCH_REGS - 1):0];
 
     always @(posedge clk) begin
         if(reset) begin
@@ -178,10 +187,6 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
             read_2_tags <= 0;
         end
     end
-
-    logic out_of_tags;
-    logic [8:0] current_phys_reg;
-    rat r(clk, reset, out_of_tags);
 
     always @(posedge clk) begin
         if(!stall) begin
