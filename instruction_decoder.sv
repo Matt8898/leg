@@ -11,7 +11,8 @@ module instruction_decoder(
     output logic [5:0] alu_fn,
     output logic has_register_1,
     output logic has_register_2,
-    output logic has_target
+    output logic has_target,
+	output logic is_noop
 );
 
 
@@ -157,5 +158,11 @@ always_comb begin
 //            $display("unknown instruction: %x", op);
         end
     endcase
+
+	if(rs_station == 0 || (register_target == 0 && has_target)) begin
+		is_noop = 1;
+	end else begin
+		is_noop = 0;
+	end
 end
 endmodule

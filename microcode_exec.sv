@@ -185,6 +185,7 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
     logic has_register_2[1:0];
     logic has_target[1:0];
     logic [31:0] decoded_instruction[1:0];
+    logic is_noop[1:0];
 
     logic instr_type_p[1:0];
     logic [5:0] operation_p[1:0];
@@ -199,22 +200,25 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
     logic has_register_1_p[1:0];
     logic has_register_2_p[1:0];
     logic has_target_p[1:0];
+    logic is_noop_p[1:0];
     logic split_bundle_p;
 
     instruction_decoder idec1(fetched_instruction[0],  operation[0],  register_target[0],  register_1[0],  register_2[0],
-        jump_offset[0],  sub_field[0],  immediate[0],  rs_station[0],  alu_fn[0],  has_register_1[0],  has_register_2[0],  has_target[0]);
+        jump_offset[0],  sub_field[0],  immediate[0],  rs_station[0],  alu_fn[0],  has_register_1[0],  has_register_2[0],  has_target[0],
+        is_noop[0]);
     instruction_decoder idec2(fetched_instruction[1],  operation[1],  register_target[1],  register_1[1],  register_2[1],
-        jump_offset[1],  sub_field[1],  immediate[1],  rs_station[1],  alu_fn[1],  has_register_1[1],  has_register_2[1],  has_target[1]);
+        jump_offset[1],  sub_field[1],  immediate[1],  rs_station[1],  alu_fn[1],  has_register_1[1],  has_register_2[1],  has_target[1],
+        is_noop[1]);
 
-  pipeline_reg #(119) decode_reg1(clk, reset, !stall, clear_decode_pipeline,
-    {operation[0], register_target[0], register_1[0], register_2[0], jump_offset[0], sub_field[0], immediate[0], rs_station[0], alu_fn[0], has_register_1[0], has_register_2[0], has_target[0], fetched_instruction[0]},
+  pipeline_reg #(120) decode_reg1(clk, reset, !stall, clear_decode_pipeline,
+    {operation[0], register_target[0], register_1[0], register_2[0], jump_offset[0], sub_field[0], immediate[0], rs_station[0], alu_fn[0], has_register_1[0], has_register_2[0], has_target[0], fetched_instruction[0], is_noop[0]},
     {operation_p[0], register_target_p[0], register_1_p[0], register_2_p[0], jump_offset_p[0], sub_field_p[0], immediate_p[0],
-        rs_station_p[0], alu_fn_p[0], has_register_1_p[0], has_register_2_p[0], has_target_p[0], decoded_instruction[0]});
+        rs_station_p[0], alu_fn_p[0], has_register_1_p[0], has_register_2_p[0], has_target_p[0], decoded_instruction[0], is_noop_p[0]});
 
-  pipeline_reg #(120) decode_reg2(clk, reset, !stall, clear_decode_pipeline,
-    {operation[1], register_target[1], register_1[1], register_2[1], jump_offset[1], sub_field[1], immediate[1], rs_station[1], alu_fn[1], has_register_1[1], has_register_2[1], has_target[1], fetched_instruction[1], split_bundle},
+  pipeline_reg #(121) decode_reg2(clk, reset, !stall, clear_decode_pipeline,
+    {operation[1], register_target[1], register_1[1], register_2[1], jump_offset[1], sub_field[1], immediate[1], rs_station[1], alu_fn[1], has_register_1[1], has_register_2[1], has_target[1], fetched_instruction[1], split_bundle, is_noop[1]},
     {operation_p[1], register_target_p[1], register_1_p[1], register_2_p[1], jump_offset_p[1], sub_field_p[1], immediate_p[1],
-        rs_station_p[1], alu_fn_p[1], has_register_1_p[1], has_register_2_p[1], has_target_p[1], decoded_instruction[1], split_bundle_p});
+        rs_station_p[1], alu_fn_p[1], has_register_1_p[1], has_register_2_p[1], has_target_p[1], decoded_instruction[1], split_bundle_p, is_noop_p[1]});
 
     always_comb begin
         if(rs_station[0] != 0) begin
@@ -227,9 +231,9 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
      */
     always_ff @(posedge clk) begin
         //TODO: if the instruction has no target don't rename
-        if(rs_station[0] != 0 && !stall) begin
+        if(!stall) begin
             if(!split_bundle) begin
-                if(rs_station[1] != 0) begin
+                if(!is_noop[1] && !is_noop[0]) begin
                     if(num_items >= 4) begin
                         if(register_target[0] == register_target[1]) begin
                             read_1_tag <= 1;
@@ -254,13 +258,18 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                     end
                 end
             end else begin
-                if(num_items >= 2) begin
-                    read_2_tags <= 0;
-                    read_1_tag <= 1;
+                if(!is_noop[0]) begin
+                    if(num_items >= 2) begin
+                        read_2_tags <= 0;
+                        read_1_tag <= 1;
+                    end else begin
+                        read_1_tag <= 0;
+                        read_2_tags <= 0;
+                        stall_nophys <= 1;
+                    end
                 end else begin
                     read_1_tag <= 0;
                     read_2_tags <= 0;
-                    stall_nophys <= 1;
                 end
             end
         end else begin
@@ -284,11 +293,11 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
         if(!stall) begin
             if(read_2_tags || read_1_tag) begin
                 $display("current_rs_entry: %x %x", current_rs_entry[rs_station_p[0]], rs_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]]);
-                if(rs_station_p[0] != 0) begin
+                if(!is_noop_p[0]) begin
                     $display("instruction 0: %x upc: %x rs station: %x, r1: %x, r2: %x, rt: %x", decoded_instruction[0], upc, rs_station_p[0], register_1_p[0], register_2_p[0], register_target_p[0]);
                     $display("dest renamed to %x", read_tag_dest_0);
                 end
-                if(rs_station_p[1] != 0 && !split_bundle_p) begin
+                if(!is_noop_p[1] && !split_bundle_p) begin
                     $display("instruction 1: %x upc: %x rs station: %x, r1: %x, r2: %x, rt: %x", decoded_instruction[1], upc + 1, rs_station_p[1], register_1_p[1], register_2_p[1], register_target_p[1]);
                     $display("dest renamed to %x", read_tag_dest_1);
                 end
@@ -308,31 +317,33 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                     stall_rob_full <= 0;
                     stall_rs_full <= 0;
 
-                    q_target[current_rob_entry] <= read_tag_dest_0;
-                    q_op1[current_rob_entry] <= current_rat[register_1_p[0]];
-                    q_op2[current_rob_entry] <= current_rat[register_2_p[0]];
-                    q_immediate[current_rob_entry] <= immediate_p[0];
-                    q_rs_station[current_rob_entry] <= rs_station_p[0];
-                    q_ready[current_rob_entry] <= 0;
-                    q_busy[current_rob_entry] <= 1;
-                    $display("1: writing to rob entry %x", current_rob_entry);
+                    if(!is_noop_p[0]) begin
+                        q_target[current_rob_entry] <= read_tag_dest_0;
+                        q_op1[current_rob_entry] <= current_rat[register_1_p[0]];
+                        q_op2[current_rob_entry] <= current_rat[register_2_p[0]];
+                        q_immediate[current_rob_entry] <= immediate_p[0];
+                        q_rs_station[current_rob_entry] <= rs_station_p[0];
+                        q_ready[current_rob_entry] <= 0;
+                        q_busy[current_rob_entry] <= 1;
+                        $display("1: writing to rob entry %x", current_rob_entry);
 
-                    //Enqueue first instruction in the reservation station
-                    rs_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= 1;
-                    rs_op_1[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rat[register_1_p[0]];
-                    rs_op_2[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rat[register_2_p[0]];
-                    rs_op_1_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= rbusy[current_rat[register_1_p[0]]];
-                    rs_op_2_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= rbusy[current_rat[register_2_p[0]]];
-                    rs_op_1_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_1_p[0]]];
-                    rs_op_2_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_2_p[0]]];
-                    rs_opcode[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= operation_p[0];
-                    rs_sub_field_res[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= sub_field_p[0];
-                    rs_imm_value[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= immediate_p[0];
-                    rs_jump_offset_res[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= jump_offset_p[0];
-                    rs_rob_entry[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rob_entry;
+                        //Enqueue first instruction in the reservation station
+                        rs_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= 1;
+                        rs_op_1[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rat[register_1_p[0]];
+                        rs_op_2[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rat[register_2_p[0]];
+                        rs_op_1_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= rbusy[current_rat[register_1_p[0]]];
+                        rs_op_2_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= rbusy[current_rat[register_2_p[0]]];
+                        rs_op_1_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_1_p[0]]];
+                        rs_op_2_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_2_p[0]]];
+                        rs_opcode[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= operation_p[0];
+                        rs_sub_field_res[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= sub_field_p[0];
+                        rs_imm_value[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= immediate_p[0];
+                        rs_jump_offset_res[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= jump_offset_p[0];
+                        rs_rob_entry[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rob_entry;
+                    end
 
                     //Check dependencies between the two issued instructions
-                    if(!split_bundle_p) begin
+                    if(!split_bundle_p && !is_noop_p[1]) begin
                         $display("2: writing to rob entry %x", next_rob_entry);
                         if(register_1_p[1] == register_target_p[0]) begin
                             q_op1[next_rob_entry] <= read_tag_dest_0;
@@ -372,21 +383,25 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                         rs_rob_entry[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= current_rob_entry;
 
                     end else begin
-                        if(current_rob_entry == (ROB_ENTRIES - 1)) begin
-                            current_rob_entry <= 0;
-                        end else begin
-                            current_rob_entry <= current_rob_entry + 1;
+                        if(!is_noop_p[0]) begin
+                            if(current_rob_entry == (ROB_ENTRIES - 1)) begin
+                                current_rob_entry <= 0;
+                            end else begin
+                                current_rob_entry <= current_rob_entry + 1;
+                            end
                         end
                     end
 
                     //advance reservation station entry pointers
-                    if(current_rs_entry[rs_station_p[0]] == (RS_ENTRIES - 1)) begin
-                        current_rs_entry[rs_station_p[0]] <= 0;
-                    end else begin
-                        current_rs_entry[rs_station_p[0]] <= current_rs_entry[rs_station_p[0]] + 1;
+                    if(!is_noop_p[0]) begin
+                        if(current_rs_entry[rs_station_p[0]] == (RS_ENTRIES - 1)) begin
+                            current_rs_entry[rs_station_p[0]] <= 0;
+                        end else begin
+                            current_rs_entry[rs_station_p[0]] <= current_rs_entry[rs_station_p[0]] + 1;
+                        end
                     end
 
-                    if(!split_bundle) begin
+                    if(!split_bundle && !is_noop_p[1]) begin
                         if(current_rs_entry[rs_station_p[1]] == (RS_ENTRIES - 1)) begin
                             current_rs_entry[rs_station_p[1]] <= 0;
                         end else begin
@@ -396,21 +411,32 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
 
                     //Rename target register and set register tag
                     if(register_target_p[0] == register_target_p[1] && !split_bundle_p) begin
-                        $display("2 instructions have the same target");
-                        current_rat[register_target_p[1]] <= read_tag_dest_0;
-                        tags[read_tag_dest_0] <= next_rob_entry;
-                        rbusy[read_tag_dest_0] <= 1;
+                        if(!is_noop_p[0]) begin
+                            $display("2 instructions have the same target");
+                            current_rat[register_target_p[1]] <= read_tag_dest_0;
+                            tags[read_tag_dest_0] <= next_rob_entry;
+                            rbusy[read_tag_dest_0] <= 1;
+                        end
                     end else begin
-                        current_rat[register_target_p[0]] <= read_tag_dest_0;
-                        tags[read_tag_dest_0] <= current_rob_entry;
-                        tags[read_tag_dest_1] <= next_rob_entry;
-                        rbusy[read_tag_dest_0] <= 1;
-                        rbusy[read_tag_dest_1] <= 1;
+                        if(!is_noop_p[0]) begin
+                            current_rat[register_target_p[0]] <= read_tag_dest_0;
+                            tags[read_tag_dest_0] <= current_rob_entry;
+                            rbusy[read_tag_dest_0] <= 1;
+                        end
 
-                        if(!split_bundle_p) begin
+                        if(!split_bundle_p && !is_noop_p[1]) begin
                             current_rat[register_target_p[1]] <= read_tag_dest_1;
+                            tags[read_tag_dest_1] <= next_rob_entry;
+                            rbusy[read_tag_dest_1] <= 1;
                         end
                     end
+                end
+
+                if(is_noop_p[0]) begin
+                    $display("1: is noop");
+                end
+                if(is_noop_p[1]) begin
+                    $display("2: is noop");
                 end
 
             end
