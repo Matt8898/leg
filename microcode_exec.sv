@@ -3,6 +3,10 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
     parameter ARCH_REGS = 32;
     parameter ROB_ENTRIES = 128;
     parameter RS_ENTRIES = 128;
+    parameter NUM_RS = 7;
+    //this is needed since iverilog seems to think the value isn't constant
+    //otherwise.
+    parameter NUM_RS_LOG2 = $clog2(NUM_RS);
 
     //general processor control
     logic stall;
@@ -15,13 +19,13 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
     assign stall = stall_nophys | stall_rob_full | stall_rs_full;
 
     logic reg_write;
-    logic [4:0]  reg_addr_1, reg_addr_2, reg_write_addr;
+    logic [4:0]  reg_addr_1, reg_addr_2, reg_addr_3, reg_addr_4, reg_write_addr;
     logic [31:0] write_source;
-    logic [31:0] read_dest_1, read_dest_2;
+    logic [31:0] read_dest_1, read_dest_2, read_dest_3, read_dest_4;
     logic [$clog2(ROB_ENTRIES):0] tags[NUM_PHYS:0];
     logic rbusy[NUM_PHYS:0];
 
-    register_file regs(clk, reset, reg_write, reg_addr_1, reg_addr_2, reg_write_addr, write_source, read_dest_1, read_dest_2);
+    register_file regs(clk, reset, reg_write, reg_addr_1, reg_addr_2, reg_addr_3, reg_addr_4, reg_write_addr, write_source, read_dest_1, read_dest_2, read_dest_3, read_dest_4);
 
     logic reg_busy [ARCH_REGS - 1:0];
 
@@ -77,11 +81,17 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
     logic        rs_op_2_busy[RS_ENTRIES:0][7:0];
     logic [5:0]  rs_opcode[RS_ENTRIES:0][7:0];
     logic [10:0] rs_sub_field_res[RS_ENTRIES:0][7:0];
+    logic [5:0]  rs_fn [RS_ENTRIES:0][7:0];
     logic [15:0] rs_imm_value[RS_ENTRIES:0][7:0];
     logic [25:0] rs_jump_offset_res[RS_ENTRIES:0][7:0];
     logic [5:0]  rs_rob_entry[RS_ENTRIES:0][7:0];
     logic [$clog2(RS_ENTRIES):0] current_rs_entry[7:0];
     logic [$clog2(RS_ENTRIES):0] next_rs_entry[7:0];
+
+    /*
+     * Execution unit
+     */
+    logic [$clog2(RS_ENTRIES):0] exec_rs_entry[7:0];
 
     tag_fifo #(NUM_PHYS) fifo (clk, reset, write_tag_source, write_tag, read_tag_dest_0, read_tag_dest_1, read_1_tag, read_2_tags, freespace, num_items);
     always @(posedge clk) begin
@@ -89,6 +99,9 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
         write_tag <= 0;
         read_1_tag <= 0;
         read_2_tags <= 0;
+        for(int i = 0; i < RS_ENTRIES; i++) begin
+            exec_rs_entry[i] <= 0;
+        end
       end
     end
 
@@ -222,7 +235,7 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
 
     always_comb begin
         if(rs_station[0] != 0) begin
-            split_bundle = rs_station[0] == rs_station[1];
+            split_bundle = rs_station[0] == rs_station[1] /*|| ((has_register_1[1] && has_target[0]) && (register_1[1] == register_target[0] || register_2[1] == register_target[0]))*/;
         end
     end
 
@@ -278,6 +291,57 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
         end
     end
 
+    always @(posedge clk) begin
+        if(reset) begin
+            reg_addr_1 <= 0;
+            reg_addr_2 <= 0;
+            reg_addr_3 <= 0;
+            reg_addr_4 <= 0;
+        end
+        if(!stall) begin
+            //read register 1 of instruction 1
+            //previous bundle wasn't split and the second instruction writes to
+            //register_1
+            if(register_target_p[1] == register_1[0] && !split_bundle_p) begin
+                reg_addr_1 <= read_tag_dest_1;
+            end else if(register_target_p[0] == register_1[0]) begin //the first instruction in the previous bundle wrote to this register and the bundle was either split or the second did not write to it.
+                reg_addr_1 <= read_tag_dest_0;
+            end else begin
+                reg_addr_1 <= current_rat[register_1[0]];
+            end
+
+            //read register 2 of instruction 1
+            if(register_target_p[1] == register_2[0] && !split_bundle_p) begin
+                reg_addr_2 <= read_tag_dest_1;
+            end else if(register_target_p[0] == register_2[0]) begin
+                reg_addr_2 <= read_tag_dest_0;
+            end else begin
+                reg_addr_2 <= current_rat[register_2[0]];
+            end
+
+            //read register 1 of instruction 2
+            //the register is written to by the previous instruction in the bundle
+            if(register_target[0] == register_1[1]) begin
+            end else if(register_target_p[1] == register_1[1] && !split_bundle_p) begin
+                reg_addr_3 <= read_tag_dest_1;
+            end else if(register_target_p[1] == register_1[1]) begin
+                reg_addr_3 <= read_tag_dest_0;
+            end else begin
+                reg_addr_3 <= current_rat[register_1[1]];
+            end
+
+            //read register 2 of instruction 2
+            if(register_target[0] == register_2[1]) begin
+            end else if(register_target_p[1] == register_2[1] && !split_bundle_p) begin
+                reg_addr_4 <= read_tag_dest_1;
+            end else if(register_target_p[1] == register_2[1]) begin
+                reg_addr_4 <= read_tag_dest_0;
+            end else begin
+                reg_addr_4 <= current_rat[register_2[1]];
+            end
+        end
+    end
+
     //TODO implement stalling for when the issue queues are full.
     logic [$clog2(ROB_ENTRIES):0] next_rob_entry;
     assign next_rob_entry = (current_rob_entry == (ROB_ENTRIES - 1)) ? 0 : (current_rob_entry + 1);
@@ -329,6 +393,7 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
 
                         //Enqueue first instruction in the reservation station
                         rs_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= 1;
+                        $display("rs entry: %x", current_rs_entry[rs_station_p[0]]);
                         rs_op_1[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rat[register_1_p[0]];
                         rs_op_2[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rat[register_2_p[0]];
                         rs_op_1_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= rbusy[current_rat[register_1_p[0]]];
@@ -337,6 +402,7 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                         rs_op_2_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_2_p[0]]];
                         rs_opcode[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= operation_p[0];
                         rs_sub_field_res[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= sub_field_p[0];
+                        rs_fn[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= alu_fn_p[0];
                         rs_imm_value[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= immediate_p[0];
                         rs_jump_offset_res[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= jump_offset_p[0];
                         rs_rob_entry[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rob_entry;
@@ -378,6 +444,7 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                         rs_op_2_tag[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= tags[current_rat[register_2_p[1]]];
                         rs_opcode[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= operation_p[1];
                         rs_sub_field_res[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= sub_field_p[1];
+                        rs_fn[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= alu_fn_p[1];
                         rs_imm_value[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= immediate_p[1];
                         rs_jump_offset_res[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= jump_offset_p[1];
                         rs_rob_entry[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= current_rob_entry;
@@ -443,6 +510,53 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
         end
     end
 
+    logic dowork [NUM_RS:0];
+    wire w_dowork [NUM_RS:0];
+    logic done [NUM_RS:0];
+    logic [31:0] result [NUM_RS:0];
+
     always @(posedge clk) begin
+        if(reset) begin
+            for(int i = 0; i < NUM_RS; i++) begin
+                dowork[i] <= 0;
+            end
+        end
+    end
+
+    assign w_dowork[1] = dowork[1];
+
+    alu_exec alu_exe(clk,
+        reset,
+        w_dowork[1],
+        done[1],
+        rs_op_1[exec_rs_entry[1]][1],
+        rs_op_2[exec_rs_entry[1]][1],
+        rs_fn[exec_rs_entry[1]][1],
+        rs_imm_value[exec_rs_entry[1]][1],
+        result[1]);
+
+    task execute(input logic [NUM_RS_LOG2:0] number);
+        if(rs_busy[exec_rs_entry[number]][number]) begin
+            $display("rs is busy");
+            //check if the operands are ready
+            if(rs_op_1_busy[exec_rs_entry[number]][number] || rs_op_2_busy[exec_rs_entry[number]][number]) begin
+                //TODO handle this
+            end else begin
+                //we can issue the instruction to the execution unit
+                if(!dowork[number]) begin
+                    $display("execution unit %x can run instruction", number);
+                    dowork[number] <= 1;
+                end
+                if(done[number] && dowork[number]) begin
+                    $display("%x done with result %x", number, result[number]);
+                    dowork[number] <= 0;
+                    rs_busy[exec_rs_entry[number]][number] <= 0;
+                end
+            end
+        end
+    endtask
+
+    always @(posedge clk) begin
+        execute(1);
     end
 endmodule
