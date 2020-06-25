@@ -11,35 +11,8 @@ module alu_exec(input logic clk,
 
    logic [3:0] counter;
    logic working;
-/*
-   always @(posedge clk) begin
-       if(reset) begin
-           done <= 0;
-           result <= 0;
-           working <= 0;
-        end
-        if(done) begin
-            done <= 0;
-        end
-       if(dowork && !working && !done) begin
-           $display("dowork is true");
-           done <= 0;
-           result <= 0;
-           counter <= 0;
-           working <= 1;
-        end
 
-        if(working) begin
-            counter <= counter + 1;
-            if(counter == 3) begin
-                working <= 0;
-                done <= 1;
-                result <= 1;
-                counter <= 0;
-            end
-        end
-   end*/
-  always @(posedge clk) begin
+   always @(posedge clk) begin
        if(reset) begin
            done <= 0;
            result <= 0;
@@ -50,9 +23,9 @@ module alu_exec(input logic clk,
     end
     if(dowork && !done) begin
         done <= 1;
-		if(fn == 0) begin
-        	result <= 1;
-		end
+        if(fn == 0) begin
+            result <= 1;
+        end
     end
    end
 
