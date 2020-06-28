@@ -303,40 +303,54 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
             //previous bundle wasn't split and the second instruction writes to
             //register_1
             if(register_target_p[1] == register_1[0] && !split_bundle_p) begin
+                $display("i1: register 1 is written to by instruction 2 of previous bundle");
                 reg_addr_1 <= read_tag_dest_1;
             end else if(register_target_p[0] == register_1[0]) begin //the first instruction in the previous bundle wrote to this register and the bundle was either split or the second did not write to it.
+                $display("i1: register 1 is written to by instruction 1 of previous bundle");
                 reg_addr_1 <= read_tag_dest_0;
             end else begin
+                $display("i1: register 1 is independent of the previous bundle");
                 reg_addr_1 <= current_rat[register_1[0]];
             end
 
             //read register 2 of instruction 1
             if(register_target_p[1] == register_2[0] && !split_bundle_p) begin
+                $display("i1: register 2 is written to by instruction 2 of previous bundle");
                 reg_addr_2 <= read_tag_dest_1;
             end else if(register_target_p[0] == register_2[0]) begin
+                $display("i1: register 2 is written to by instruction 1 of previous bundle");
                 reg_addr_2 <= read_tag_dest_0;
             end else begin
+                $display("i1: register 2 is independent of the previous bundle");
                 reg_addr_2 <= current_rat[register_2[0]];
             end
 
             //read register 1 of instruction 2
             //the register is written to by the previous instruction in the bundle
             if(register_target[0] == register_1[1]) begin
+                $display("i2: register 1 is written to by instruction 1 of the current bundle");
             end else if(register_target_p[1] == register_1[1] && !split_bundle_p) begin
+                $display("i2: register 1 is written to by instruction 2 of previous bundle");
                 reg_addr_3 <= read_tag_dest_1;
             end else if(register_target_p[1] == register_1[1]) begin
+                $display("i2: register 1 is written to by instruction 1 of previous bundle");
                 reg_addr_3 <= read_tag_dest_0;
             end else begin
+                $display("i2: register 1 is independent of the previous bundle");
                 reg_addr_3 <= current_rat[register_1[1]];
             end
 
             //read register 2 of instruction 2
             if(register_target[0] == register_2[1]) begin
+                $display("i2: register 2 is written to by instruction 1 of the current bundle");
             end else if(register_target_p[1] == register_2[1] && !split_bundle_p) begin
+                $display("i2: register 2 is written to by instruction 2 of previous bundle");
                 reg_addr_4 <= read_tag_dest_1;
             end else if(register_target_p[1] == register_2[1]) begin
+                $display("i2: register 2 is written to by instruction 1 of previous bundle");
                 reg_addr_4 <= read_tag_dest_0;
             end else begin
+                $display("i2: register 2 is independent of the previous bundle");
                 reg_addr_4 <= current_rat[register_2[1]];
             end
         end
@@ -394,18 +408,29 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                         //Enqueue first instruction in the reservation station
                         rs_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= 1;
                         $display("rs entry: %x", current_rs_entry[rs_station_p[0]]);
-                        rs_op_1[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rat[register_1_p[0]];
                         rs_op_2[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rat[register_2_p[0]];
-                        rs_op_1_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= rbusy[current_rat[register_1_p[0]]];
-                        rs_op_2_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= rbusy[current_rat[register_2_p[0]]];
-                        rs_op_1_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_1_p[0]]];
-                        rs_op_2_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_2_p[0]]];
                         rs_opcode[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= operation_p[0];
                         rs_sub_field_res[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= sub_field_p[0];
                         rs_fn[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= alu_fn_p[0];
                         rs_imm_value[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= immediate_p[0];
                         rs_jump_offset_res[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= jump_offset_p[0];
                         rs_rob_entry[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= current_rob_entry;
+
+                        rs_op_1_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= rbusy[current_rat[register_1_p[0]]];
+                        if(!rbusy[current_rat[register_1_p[0]]] && has_register_1_p[0]) begin
+                            rs_op_1_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= 0;
+                            rs_op_1[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= read_dest_1;
+                        end else if(has_register_1_p[0]) begin
+                            rs_op_1_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_1_p[0]]];
+                        end
+
+                        rs_op_2_busy[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= rbusy[current_rat[register_2_p[0]]];
+                        if(!rbusy[current_rat[register_1_p[0]]] && has_register_1_p[0]) begin
+                            rs_op_2_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= 0;
+                            rs_op_1[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= read_dest_2;
+                        end else if(has_register_1_p[0]) begin
+                            rs_op_2_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_2_p[0]]];
+                        end
                     end
 
                     //Check dependencies between the two issued instructions
@@ -448,6 +473,22 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                         rs_imm_value[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= immediate_p[1];
                         rs_jump_offset_res[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= jump_offset_p[1];
                         rs_rob_entry[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= current_rob_entry;
+
+                        rs_op_1_busy[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= rbusy[current_rat[register_1_p[1]]];
+                        if(!rbusy[current_rat[register_1_p[1]]] && has_register_1_p[1]) begin
+                            rs_op_1_tag[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= 0;
+                            rs_op_1[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= read_dest_3;
+                        end else if(has_register_1_p[1]) begin
+                            rs_op_1_tag[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= tags[current_rat[register_1_p[1]]];
+                        end
+
+                        rs_op_2_busy[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= rbusy[current_rat[register_2_p[1]]];
+                        if(!rbusy[current_rat[register_1_p[1]]] && has_register_1_p[1]) begin
+                            rs_op_2_tag[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= 0;
+                            rs_op_1[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= read_dest_4;
+                        end else if(has_register_1_p[1]) begin
+                            rs_op_2_tag[current_rs_entry[rs_station_p[1]]][rs_station_p[1]] <= tags[current_rat[register_2_p[1]]];
+                        end
 
                     end else begin
                         if(!is_noop_p[0]) begin
