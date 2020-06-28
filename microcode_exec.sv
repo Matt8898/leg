@@ -27,7 +27,7 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
 
     register_file regs(clk, reset, reg_write, reg_addr_1, reg_addr_2, reg_addr_3, reg_addr_4, reg_write_addr, write_source, read_dest_1, read_dest_2, read_dest_3, read_dest_4);
 
-    logic reg_busy [ARCH_REGS - 1:0];
+   logic reg_busy [ARCH_REGS - 1:0];
 
     logic split_bundle;
     logic clear_decode_pipeline;
@@ -122,6 +122,10 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
             split_bundle <= 0;
             clear_fetch_pipeline <= 0;
             current_rob_entry <= 0;
+
+            for(int i = 0; i < ARCH_REGS; i++) begin
+                current_rat[i] <= 0;
+            end
 
             for(int i = 0; i < ROB_ENTRIES; i++) begin
                 q_ready[i] <= 0;
@@ -302,27 +306,28 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
             //read register 1 of instruction 1
             //previous bundle wasn't split and the second instruction writes to
             //register_1
+            $display("instruction is %x", fetched_instruction[0]);
             if(register_target_p[1] == register_1[0] && !split_bundle_p) begin
                 $display("i1: register 1 is written to by instruction 2 of previous bundle");
-                reg_addr_1 <= read_tag_dest_1;
+                reg_addr_1 = read_tag_dest_1;
             end else if(register_target_p[0] == register_1[0]) begin //the first instruction in the previous bundle wrote to this register and the bundle was either split or the second did not write to it.
                 $display("i1: register 1 is written to by instruction 1 of previous bundle");
-                reg_addr_1 <= read_tag_dest_0;
+                reg_addr_1 = read_tag_dest_0;
             end else begin
-                $display("i1: register 1 is independent of the previous bundle");
-                reg_addr_1 <= current_rat[register_1[0]];
+                $display("i1: register 1 is independent of the previous bundle %x %x", register_1[0], current_rat[register_1[0]]);
+                reg_addr_1 = current_rat[register_1[0]];
             end
 
             //read register 2 of instruction 1
             if(register_target_p[1] == register_2[0] && !split_bundle_p) begin
                 $display("i1: register 2 is written to by instruction 2 of previous bundle");
-                reg_addr_2 <= read_tag_dest_1;
+                reg_addr_2 = read_tag_dest_1;
             end else if(register_target_p[0] == register_2[0]) begin
                 $display("i1: register 2 is written to by instruction 1 of previous bundle");
-                reg_addr_2 <= read_tag_dest_0;
+                reg_addr_2 = read_tag_dest_0;
             end else begin
                 $display("i1: register 2 is independent of the previous bundle");
-                reg_addr_2 <= current_rat[register_2[0]];
+                reg_addr_2 = current_rat[register_2[0]];
             end
 
             //read register 1 of instruction 2
@@ -331,13 +336,13 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                 $display("i2: register 1 is written to by instruction 1 of the current bundle");
             end else if(register_target_p[1] == register_1[1] && !split_bundle_p) begin
                 $display("i2: register 1 is written to by instruction 2 of previous bundle");
-                reg_addr_3 <= read_tag_dest_1;
+                reg_addr_3 = read_tag_dest_1;
             end else if(register_target_p[1] == register_1[1]) begin
                 $display("i2: register 1 is written to by instruction 1 of previous bundle");
-                reg_addr_3 <= read_tag_dest_0;
+                reg_addr_3 = read_tag_dest_0;
             end else begin
                 $display("i2: register 1 is independent of the previous bundle");
-                reg_addr_3 <= current_rat[register_1[1]];
+                reg_addr_3 = current_rat[register_1[1]];
             end
 
             //read register 2 of instruction 2
@@ -345,13 +350,13 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                 $display("i2: register 2 is written to by instruction 1 of the current bundle");
             end else if(register_target_p[1] == register_2[1] && !split_bundle_p) begin
                 $display("i2: register 2 is written to by instruction 2 of previous bundle");
-                reg_addr_4 <= read_tag_dest_1;
+                reg_addr_4 = read_tag_dest_1;
             end else if(register_target_p[1] == register_2[1]) begin
                 $display("i2: register 2 is written to by instruction 1 of previous bundle");
-                reg_addr_4 <= read_tag_dest_0;
+                reg_addr_4 = read_tag_dest_0;
             end else begin
                 $display("i2: register 2 is independent of the previous bundle");
-                reg_addr_4 <= current_rat[register_2[1]];
+                reg_addr_4 = current_rat[register_2[1]];
             end
         end
     end
@@ -420,7 +425,9 @@ module microcode_exec(input wire clk, input wire reset, input logic [31:0] uop_b
                         if(!rbusy[current_rat[register_1_p[0]]] && has_register_1_p[0]) begin
                             rs_op_1_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= 0;
                             rs_op_1[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= read_dest_1;
+                            $display("operand 1 is available with the value %x", read_dest_1);
                         end else if(has_register_1_p[0]) begin
+                            $display("operand 1 is not available %x", rbusy[current_rat[register_1_p[0]]]);
                             rs_op_1_tag[current_rs_entry[rs_station_p[0]]][rs_station_p[0]] <= tags[current_rat[register_1_p[0]]];
                         end
 

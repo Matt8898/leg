@@ -22,9 +22,10 @@ module alu_exec(input logic clk,
         done <= 0;
     end
     if(dowork && !done) begin
+        $display("operands: %x %x", op_1, op_2);
         done <= 1;
         if(fn == 0) begin
-            result <= 1;
+            result <= op_1 + op_2 + immediate;
         end
     end
    end
