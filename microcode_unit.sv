@@ -1,6 +1,8 @@
 module microcode_unit(input logic clk, input logic reset, output logic [$clog2(UOP_BUF_SIZE) - 1:0] uop_addr, input logic [(UOP_BUF_WIDTH - 1): 0] uop);
     parameter UOP_BUF_SIZE = 128;
-    parameter UOP_BUF_WIDTH = 64;
+	parameter MAX_PREDICT_DEPTH = 3;
+	parameter MAX_PREDICT_DEPTH_BITS = $clog2(MAX_PREDICT_DEPTH);
+    parameter UOP_BUF_WIDTH = 64 + MAX_PREDICT_DEPTH_BITS * 2;
 
     logic flush_pipeline;
     assign flush_pipeline = 0;
@@ -8,6 +10,9 @@ module microcode_unit(input logic clk, input logic reset, output logic [$clog2(U
     logic fetch_stalled, fetch_valid;
     logic [31:0] instruction_1;
     logic [31:0] instruction_2;
+    logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag_1;
+    logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag_2;
+
     uop_fetch uf(
         .clk(clk),
         .reset(reset),
@@ -19,12 +24,14 @@ module microcode_unit(input logic clk, input logic reset, output logic [$clog2(U
         .uop(uop),
         .prev_valid(1'b1), //for now stub this
         .instruction_1(instruction_1),
-        .instruction_2(instruction_2)
+        .instruction_2(instruction_2),
+        .branch_tag_1(branch_tag_1),
+        .branch_tag_2(branch_tag_2)
     );
 
     always @(posedge clk) begin
         if(fetch_valid) begin
-            $display("fetched %x %x", instruction_1, instruction_2);
+            $display("fetched %x %x %x %x", instruction_1, instruction_2, branch_tag_1, branch_tag_2);
         end
     end
 endmodule
