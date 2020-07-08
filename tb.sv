@@ -1,8 +1,7 @@
 module test;
     parameter UOP_BUF_SIZE = 128;
-    parameter UOP_BUF_WIDTH = 32;
+    parameter UOP_BUF_WIDTH = 64;
     logic [(UOP_BUF_WIDTH - 1):0] uops[0:(UOP_BUF_SIZE - 1)];
-    logic [UOP_BUF_SIZE * (UOP_BUF_WIDTH - 1):0] uops_arg;
 
     initial
     begin
@@ -24,9 +23,9 @@ module test;
     logic clk = 0;
     logic [31:0] cnt;
     always #5 clk = !clk;
-    logic [$clog2(UOP_BUF_SIZE)] uop_addr;
-    logic [(UOP_BUF_WIDTH - 1): 0] uop;
+    logic [$clog2(UOP_BUF_SIZE) - 1:0] uop_addr;
+    logic [(UOP_BUF_WIDTH - 1):0] uop;
 
     assign uop = uops[uop_addr];
-    microcode_unit #(UOP_BUF_SIZE, UOP_BUF_WIDTH) mc(clk, reset, uop_addr, uop);
+    microcode_unit #(UOP_BUF_SIZE, UOP_BUF_WIDTH) mc(.clk(clk), .reset(reset), .uop_addr(uop_addr), .uop(uop));
 endmodule
