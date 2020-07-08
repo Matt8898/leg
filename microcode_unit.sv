@@ -1,9 +1,6 @@
-module microcode_unit(input logic clk, input logic reset, output logic [$clog2(UOP_BUF_SIZE) - 1:0] uop_addr, input logic [(UOP_BUF_WIDTH - 1): 0] uop);
-    parameter UOP_BUF_SIZE = 128;
-	parameter MAX_PREDICT_DEPTH = 3;
-	parameter MAX_PREDICT_DEPTH_BITS = $clog2(MAX_PREDICT_DEPTH);
-    parameter UOP_BUF_WIDTH = 64 + MAX_PREDICT_DEPTH_BITS * 2;
+#include "defines.inc"
 
+module microcode_unit(input logic clk, input logic reset, output logic [$clog2(UOP_BUF_SIZE) - 1:0] uop_addr, input logic [(UOP_BUF_WIDTH - 1): 0] uop);
     logic flush_pipeline;
     assign flush_pipeline = 0;
 

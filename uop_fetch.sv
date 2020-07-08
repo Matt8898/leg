@@ -1,3 +1,5 @@
+#include "defines.inc"
+
 module uop_fetch (
     input logic clk,
     input logic reset,
@@ -9,11 +11,6 @@ module uop_fetch (
     output logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag_1,
     output logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag_2
 );
-
-parameter UOP_BUF_SIZE = 128;
-parameter MAX_PREDICT_DEPTH = 3;
-parameter MAX_PREDICT_DEPTH_BITS = $clog2(MAX_PREDICT_DEPTH);
-parameter UOP_BUF_WIDTH = 64 + MAX_PREDICT_DEPTH_BITS * 2;
 
 always @(posedge clk) begin
     if(reset) begin
