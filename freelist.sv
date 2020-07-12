@@ -16,6 +16,7 @@ module freelist(
 logic[NUM_PREGS - 1:0] list;
 logic [$clog2(NUM_PREGS):0] i_num_free;
 logic[NUM_PREGS - 1:0] branch_lists[MAX_PREDICT_DEPTH - 1:0];
+logic[NUM_PREGS - 1:0] branch_shootdown_mask;
 
 assign num_free = i_num_free;
 
@@ -46,8 +47,16 @@ always_comb begin
     end
 end
 
+always_comb begin
+    branch_shootdown_mask = 0;
+    for(i = 0; i < MAX_PREDICT_DEPTH; i = i + 1) begin
+        if((i - 1) >= shootdown_branch_tag) begin
+            branch_shootdown_mask = branch_shootdown_mask & branch_lists[shootdown_branch_tag - 1];
+        end
+    end
+end
 
-always @(posedge clk) begin
+always_ff @(posedge clk) begin
     if(reset) begin
         for(i = 0; i < NUM_PREGS; i = i + 1) begin
             list[i] <= 1;
@@ -76,11 +85,7 @@ always @(posedge clk) begin
             end
         end
         if(branch_shootdown) begin
-            for(i = 0; i < MAX_PREDICT_DEPTH; i = i + 1) begin
-                if((i - 1) >= shootdown_branch_tag) begin
-                    list = list | ~(branch_lists[i]);
-                end
-            end
+            list <= list | ~(branch_shootdown_mask);
         end
     end
 end
