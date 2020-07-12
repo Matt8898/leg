@@ -4,22 +4,27 @@ module freelist(
     input logic clk,
     input logic reset,
     input logic [1:0] num_pull,
+    input logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag_1,
+    input logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag_2,
     output logic [$clog2(NUM_PREGS) - 1:0] preg1,
     output logic [$clog2(NUM_PREGS) - 1:0] preg2,
-    output logic [$clog2(NUM_PREGS):0] num_free
+    output logic [$clog2(NUM_PREGS):0] num_free,
+    input logic branch_shootdown,
+    input logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag
 );
 
 logic[NUM_PREGS - 1:0] list;
 logic [$clog2(NUM_PREGS):0] i_num_free;
+logic[NUM_PREGS - 1:0] branch_lists[MAX_PREDICT_DEPTH - 1:0];
 
 assign num_free = i_num_free;
 
 integer i;
+integer j;
 always_comb begin
     i_num_free = 0;
     for(i = 0; i < NUM_PREGS; i = i + 1) begin
         if(list[i] == 1) begin
-            $display("bit 1");
             i_num_free = num_free + 1;
         end
     end
@@ -46,18 +51,37 @@ always @(posedge clk) begin
     if(reset) begin
         for(i = 0; i < NUM_PREGS; i = i + 1) begin
             list[i] <= 1;
+            for(j = 0; j < MAX_PREDICT_DEPTH; j = j + 1) begin
+                branch_lists[j][i] <= 1;
+            end
         end
     end else begin
         assert(i_num_free >= num_pull);
         if(num_pull == 1) begin
             preg1 <= first_free;
             list[first_free] <= 0;
+            if(branch_tag_1 != 0) begin
+                branch_lists[branch_tag_1 - 1][first_free] <= 0;
+            end
         end else if(num_pull == 2) begin
             preg1 <= first_free;
             preg2 <= second_free;
             list[first_free] <= 0;
             list[second_free] <= 0;
-       end
+            if(branch_tag_1 != 0) begin
+                branch_lists[branch_tag_1 - 1][first_free] <= 0;
+            end
+            if(branch_tag_2 != 0) begin
+                branch_lists[branch_tag_2 - 1][second_free] <= 0;
+            end
+        end
+        if(branch_shootdown) begin
+            for(i = 0; i < MAX_PREDICT_DEPTH; i = i + 1) begin
+                if((i - 1) >= shootdown_branch_tag) begin
+                    list = list | ~(branch_lists[i]);
+                end
+            end
+        end
     end
 end
 
