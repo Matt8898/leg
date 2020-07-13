@@ -1,6 +1,6 @@
 #include "defines.inc"
 
-module freelist(
+module freelist (
     input logic clk,
     input logic reset,
     input logic [1:0] num_pull,

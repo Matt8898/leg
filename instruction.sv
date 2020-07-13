@@ -6,7 +6,14 @@
 typedef struct packed {
     logic [31:0] instruction;
     logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag;
+    logic macroop_start;
+    logic macroop_end;
 } fetched_instruction;
+
+typedef struct packed {
+    fetched_instruction i1;
+    fetched_instruction i2;
+} instruction_bundle;
 
 typedef struct packed {
     logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag;
@@ -20,9 +27,11 @@ typedef struct packed {
     logic [15:0] immediate;
     logic [3:0]  rs_station;
     logic [5:0] alu_fn;
-    logic has_register_1;
-    logic has_register_2;
+    logic has_reg1;
+    logic has_reg2;
     logic has_target;
-	logic is_noop;
+    logic is_noop;
+    logic macroop_start;
+    logic macroop_end;
 } decoded_instruction;
 `endif
