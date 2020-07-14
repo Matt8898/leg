@@ -1,8 +1,10 @@
 #define delay #
 #include "defines.inc"
+#include "instruction.sv"
 
 module test;
-   logic [(UOP_BUF_WIDTH - 1):0] uops[0:(UOP_BUF_SIZE - 1)];
+   instruction_bundle uops[0:(UOP_BUF_SIZE - 1)];
+   instruction_bundle uops0;
 
     logic [31:0] in1 = 'h25270004;
     logic [31:0] in2 = 'h25270005;
@@ -13,13 +15,27 @@ module test;
     begin
         $dumpfile("test.vcd");
         $dumpvars(0, mc);
-//        $readmemh("memfile.dat", uops);
         for(int i = 0; i < 128; i++) begin
             uops[i] = 0;
         end
 
-        //temporary to test branch tags
-        uops[0] = {branch_tag_1, branch_tag_2, in1, in2};
+        uops[0][71-:32] = 'h25270004;
+        uops[0][39-:2] = 'h2;
+        uops[0][37] = 'h1;
+        uops[0][36] = 'h1;
+        uops[0][35-:32] = 'h25270005;
+        uops[0][3-:2] = 'h2;
+        uops[0][1] = 'h1;
+        uops[0][0] = 'h1;
+
+        uops[1][71-:32] = 'h25270004;
+        uops[1][39-:2] = 'h2;
+        uops[1][37] = 'h1;
+        uops[1][36] = 'h1;
+        uops[1][35-:32] = 'h25270005;
+        uops[1][3-:2] = 'h2;
+        uops[1][1] = 'h1;
+        uops[1][0] = 'h1;
         $display("%x", uops[0]);
     end
 

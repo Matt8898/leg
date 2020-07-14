@@ -1,9 +1,8 @@
 #include "defines.inc"
 
-module freelist (
+interface freelist (
     input logic clk,
     input logic reset,
-    input logic [1:0] num_pull,
     input logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag_1,
     input logic [MAX_PREDICT_DEPTH_BITS - 1:0] branch_tag_2,
     output logic [$clog2(NUM_PREGS) - 1:0] preg1,
@@ -47,6 +46,9 @@ always_comb begin
     end
 end
 
+assign preg1 = first_free;
+assign preg2 = second_free;
+
 always_comb begin
     branch_shootdown_mask = 0;
     for(i = 0; i < MAX_PREDICT_DEPTH; i = i + 1) begin
@@ -56,7 +58,7 @@ always_comb begin
     end
 end
 
-always_ff @(posedge clk) begin
+always @(posedge clk) begin
     if(reset) begin
         for(i = 0; i < NUM_PREGS; i = i + 1) begin
             list[i] <= 1;
@@ -64,17 +66,22 @@ always_ff @(posedge clk) begin
                 branch_lists[j][i] <= 1;
             end
         end
-    end else begin
-        assert(i_num_free >= num_pull);
-        if(num_pull == 1) begin
-            preg1 <= first_free;
+    end
+
+    if(branch_shootdown) begin
+        list <= list | ~(branch_shootdown_mask);
+    end
+end
+
+task allocate(input logic [1:0] _num_pull);
+    begin
+        assert(i_num_free >= _num_pull);
+        if(_num_pull == 1) begin
             list[first_free] <= 0;
             if(branch_tag_1 != 0) begin
                 branch_lists[branch_tag_1 - 1][first_free] <= 0;
             end
-        end else if(num_pull == 2) begin
-            preg1 <= first_free;
-            preg2 <= second_free;
+        end else if(_num_pull == 2) begin
             list[first_free] <= 0;
             list[second_free] <= 0;
             if(branch_tag_1 != 0) begin
@@ -84,10 +91,7 @@ always_ff @(posedge clk) begin
                 branch_lists[branch_tag_2 - 1][second_free] <= 0;
             end
         end
-        if(branch_shootdown) begin
-            list <= list | ~(branch_shootdown_mask);
-        end
     end
-end
+endtask
 
-endmodule
+endinterface
