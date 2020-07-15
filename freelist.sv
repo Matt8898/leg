@@ -14,6 +14,7 @@ interface freelist (
 
 logic[NUM_PREGS - 1:0] list;
 logic [$clog2(NUM_PREGS):0] i_num_free;
+//TODO add a table for the validity of the branch lists.
 logic[NUM_PREGS - 1:0] branch_lists[MAX_PREDICT_DEPTH - 1:0];
 logic[NUM_PREGS - 1:0] branch_shootdown_mask;
 
