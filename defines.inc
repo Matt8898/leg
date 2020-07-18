@@ -4,3 +4,4 @@
 #define UOP_BUF_WIDTH  64 + MAX_PREDICT_DEPTH_BITS * 2 + 4
 #define NUM_PREGS 128
 #define NUM_AREGS 32
+#define ROB_ENTRIES 64
