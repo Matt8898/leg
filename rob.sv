@@ -9,7 +9,31 @@
  * 3: handle exceptions
  */
 
-interface rob;
+interface rob(input logic clk, input logic reset, output logic [$clog2(ROB_ENTRIES):0] num_free);
+
+integer i;
+always_comb begin
+    num_free = 0;
+    for(i = 0; i < ROB_ENTRIES; i++) begin
+        if(!valid[i]) begin
+            num_free++;
+        end
+    end
+end
+
+always @(posedge clk) begin
+    if(reset) begin
+        for(i = 0; i < ROB_ENTRIES; i++) begin
+            valid[i] <= 0;
+            busy[i] <= 0;
+            preg[i] <= 0;
+            areg[i] <= 0;
+            exception[i] <= 0;
+            macroop_begin[i] <= 0;
+            macroop_end[i] <= 0;
+        end
+    end
+end
 
 logic valid[ROB_ENTRIES - 1:0];
 //the instruction is currently running
