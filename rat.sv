@@ -7,6 +7,9 @@ interface rat(
     input logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag
 );
 
+//commited state of the registers, used for interrupts and exceptions
+logic [$clog2(NUM_PREGS) - 1:0] commit_reg_table[NUM_AREGS - 1:0];
+//speculative state of the registers
 logic [$clog2(NUM_PREGS) - 1:0] reg_table[NUM_AREGS - 1:0];
 logic [$clog2(NUM_PREGS) - 1:0] branch_tables[NUM_AREGS - 1:0][MAX_PREDICT_DEPTH - 1:0];
 logic branch_table_valid[MAX_PREDICT_DEPTH - 1:0];

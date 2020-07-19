@@ -21,11 +21,12 @@ always @(posedge clk) begin
             uop_addr <= 0;
             valid <= 0;
             stalled <= 0;
-        end else if(!next_stalled && prev_valid) begin
+        end else if(!next_stalled) begin
             instruction_1 <= uop.i1;
             instruction_2 <= uop.i2;
             valid <= 1;
             uop_addr <= uop_addr + 1;
+            stalled <= 0;
         end else begin
             valid <= 0;
             stalled <= 1;

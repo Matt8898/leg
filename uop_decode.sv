@@ -49,26 +49,32 @@ always @(posedge clk) begin
         if(clear) begin
             valid <= 0;
             stalled <= 0;
-        end else if(!next_stalled && prev_valid) begin
+        end else if(!next_stalled) begin
             //check if the two instructions have the same destination.
-            if((i_decoded_1.is_noop && i_decoded_2.is_noop) || (i_decoded_1.rs_station == 0 && i_decoded_2.rs_station == 0)) begin
-                valid <= 0;
-            end else if((i_decoded_1.is_noop || i_decoded_2.is_noop) || (i_decoded_1.rs_station == 0 || i_decoded_2.rs_station == 0)) begin
-                if(num_free < 1) begin
-                    valid <= 0;
-                    stalled <= 1;
-                end else begin
-                    freelist.allocate(1);
+            if(prev_valid) begin
+                if((i_decoded_1.is_noop && i_decoded_2.is_noop) || (i_decoded_1.rs_station == 0 && i_decoded_2.rs_station == 0)) begin
                     valid <= 1;
+                end else if((i_decoded_1.is_noop || i_decoded_2.is_noop) || (i_decoded_1.rs_station == 0 || i_decoded_2.rs_station == 0)) begin
+                    if(num_free < 1) begin
+                        valid <= 0;
+                        stalled <= 1;
+                    end else begin
+                        freelist.allocate(1);
+                        stalled <= 0;
+                        valid <= 1;
+                    end
+                end else begin
+                    if(num_free < 2) begin
+                        valid <= 0;
+                        stalled <= 1;
+                    end else begin
+                        freelist.allocate(2);
+                        valid <= 1;
+                        stalled <= 0;
+                    end
                 end
             end else begin
-                if(num_free < 2) begin
-                    valid <= 0;
-                    stalled <= 1;
-                end else begin
-                    freelist.allocate(2);
-                    valid <= 1;
-                end
+                valid <= 0;
             end
         end else begin
             valid <= 0;
