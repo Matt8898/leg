@@ -6,6 +6,7 @@ module uop_decode (
     input logic reset,
     input logic clear,
     output logic stalled, input logic next_stalled, output logic valid, input logic prev_valid,
+    input logic enabled, input logic next_enabled,
     input fetched_instruction instruction_1,
     input fetched_instruction instruction_2,
     output decoded_instruction decoded_1,
@@ -39,55 +40,41 @@ freelist freelist(
    .shootdown_branch_tag(shootdown_branch_tag)
 );
 
+logic i_stalled;
+
+always_comb begin
+    stalled = (prev_valid && next_stalled);
+end
+
+logic [1:0] num_registers;
+assign num_registers =
+    ((i_decoded_1.is_noop && i_decoded_2.is_noop) || (i_decoded_1.rs_station == 0 && i_decoded_2.rs_station == 0)) ?
+        0 :
+        (((i_decoded_1.is_noop || i_decoded_2.is_noop) || (i_decoded_1.rs_station == 0 || i_decoded_2.rs_station == 0)) ? 1 : 2);
+assign i_stalled = num_free < num_registers;
+
 always @(posedge clk) begin
     if(reset) begin
         valid <= 0;
-        stalled <= 0;
         branch_shootdown <= 0;
         shootdown_branch_tag <= 0;
     end else begin
         if(clear) begin
             valid <= 0;
-            stalled <= 0;
-        end else if(!next_stalled) begin
-            //check if the two instructions have the same destination.
-            if(prev_valid) begin
-                if((i_decoded_1.is_noop && i_decoded_2.is_noop) || (i_decoded_1.rs_station == 0 && i_decoded_2.rs_station == 0)) begin
-                    valid <= 1;
-                end else if((i_decoded_1.is_noop || i_decoded_2.is_noop) || (i_decoded_1.rs_station == 0 || i_decoded_2.rs_station == 0)) begin
-                    if(num_free < 1) begin
-                        valid <= 0;
-                        stalled <= 1;
-                    end else begin
-                        freelist.allocate(1);
-                        stalled <= 0;
-                        valid <= 1;
-                    end
-                end else begin
-                    if(num_free < 2) begin
-                        valid <= 0;
-                        stalled <= 1;
-                    end else begin
-                        freelist.allocate(2);
-                        valid <= 1;
-                        stalled <= 0;
-                    end
-                end
-            end else begin
-                valid <= 0;
-            end
-        end else begin
+        end else if(enabled) begin
+            valid <= prev_valid;
+            freelist.allocate(num_registers);
+        end else if(next_enabled) begin
             valid <= 0;
-            stalled <= 1;
         end
     end
 end
 
 always @(posedge clk) begin
-	decoded_1 <= i_decoded_1;
-	decoded_2 <= i_decoded_2;
-	preg1 <= i_preg1;
-	preg2 <= i_preg2;
+    decoded_1 <= i_decoded_1;
+    decoded_2 <= i_decoded_2;
+    preg1 <= i_preg1;
+    preg2 <= i_preg2;
 end
 
 endmodule
