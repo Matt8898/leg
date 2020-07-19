@@ -17,14 +17,11 @@ always_comb begin
 end
 
 always @(posedge clk) begin
-    if(reset) begin
+    if(reset || clear) begin
         uop_addr <= 0;
         valid <= 0;
     end else begin
-        if(clear) begin
-            uop_addr <= 0;
-            valid <= 0;
-        end else if(enabled) begin
+        if(enabled) begin
             instruction_1 <= uop.i1;
             instruction_2 <= uop.i2;
             valid <= prev_valid;

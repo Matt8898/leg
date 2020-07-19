@@ -54,14 +54,12 @@ assign num_registers =
 assign i_stalled = num_free < num_registers;
 
 always @(posedge clk) begin
-    if(reset) begin
+    if(reset || clear) begin
         valid <= 0;
         branch_shootdown <= 0;
         shootdown_branch_tag <= 0;
     end else begin
-        if(clear) begin
-            valid <= 0;
-        end else if(enabled) begin
+        if(enabled) begin
             valid <= prev_valid;
             freelist.allocate(num_registers);
         end else if(next_enabled) begin

@@ -13,13 +13,11 @@ always_comb begin
 end
 
 always @(posedge clk) begin
-    if(reset) begin
+    if(reset || clear) begin
         valid <= 0;
         stall_time <= 0;
     end else begin
-        if(clear) begin
-            valid <= 0;
-        end else if(enabled) begin
+        if(enabled) begin
             valid <= prev_valid;
         end
     end
