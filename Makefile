@@ -4,7 +4,7 @@ PROCESSED = $(patsubst %, build/%, $(SVFILES))
 .PHONY: preprocess cpu
 
 build/%.sv: %.sv
-	-mkdir build
+	@mkdir build ||:
 	cpp -P $< > $@
 
 preprocess: $(PROCESSED)
@@ -12,8 +12,12 @@ preprocess: $(PROCESSED)
 lint: $(PROCESSED)
 	cd build && $(foreach x, $(SVFILES), verilator --default-language 1800-2017 -Wall -Wno-DECLFILENAME -Wno-UNUSED -Wno-WIDTH -Wno-STMTDLY -Wno-UNDRIVEN -Wno-PINCONNECTEMPTY --lint-only $(x);)
 
-cpu: $(PROCESSED)
-	iverilog -g2009 -o cpu build/*.sv -Wall
+build/cpu.v: $(PROCESSED)
+	-rm build/cpu.v
+	cd build && sv2v *.sv > cpu.v
+
+cpu: build/cpu.v
+	iverilog -g2009 -o cpu build/cpu.v -Wall
 
 clean:
 	rm -rf build
