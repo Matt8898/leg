@@ -12,7 +12,8 @@ module uop_decode (
     output decoded_instruction decoded_1,
     output decoded_instruction decoded_2,
     output logic [$clog2(NUM_PREGS) - 1:0] preg1,
-    output logic [$clog2(NUM_PREGS) - 1:0] preg2
+    output logic [$clog2(NUM_PREGS) - 1:0] preg2,
+    output logic [1:0] num_execute
 );
 
 decoded_instruction i_decoded_1;
@@ -73,6 +74,7 @@ always @(posedge clk) begin
     decoded_2 <= i_decoded_2;
     preg1 <= i_preg1;
     preg2 <= i_preg2;
+    num_execute <= num_registers;
 end
 
 endmodule

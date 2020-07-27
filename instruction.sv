@@ -27,10 +27,14 @@ typedef struct packed {
     logic [15:0] immediate;
     logic [3:0]  rs_station;
     logic [5:0] alu_fn;
+    //instruction moves a reigster to another register
+    logic reg_reg_mov;
+    logic is_noop;
+    //the instruction can run with no reservation station usage.
+    logic is_zerocycle;
     logic has_reg1;
     logic has_reg2;
     logic has_target;
-    logic is_noop;
     logic macroop_start;
     logic macroop_end;
 } decoded_instruction;

@@ -1,5 +1,6 @@
 #include "defines.inc"
 #include "instruction.sv"
+#include "rob.sv"
 #define NUM_STAGES 3
 
 module microcode_unit (input logic clk, input logic reset, output logic [$clog2(UOP_BUF_SIZE) - 1:0] uop_addr, input instruction_bundle uop);
@@ -17,6 +18,9 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
     assign stage_enabled[1] = (fetch_valid && !decode_stalled);
     assign stage_enabled[2] = (decode_valid && !issue_stalled);
 
+	/*
+	 * fetch instructions from the uop buffer.
+	 */
     uop_fetch uf(
         .clk(clk),
         .reset(reset),
@@ -37,7 +41,14 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
     decoded_instruction decoded_2;
     logic [$clog2(NUM_PREGS) - 1:0] preg1;
     logic [$clog2(NUM_PREGS) - 1:0] preg2;
+    logic [1:0] num_execute;
 
+	/*
+	 * Decode the instructions while also getting the necessary physical
+	 * registers for them.
+	 * TODO: maybe move the freelist out of this module to make freeing
+	 * registers in the commit stage cleaner.
+	 */
     uop_decode ud (
         .clk(clk),
         .reset(reset),
@@ -53,13 +64,22 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
         .decoded_1(decoded_1),
         .decoded_2(decoded_2),
         .preg1(preg1),
-        .preg2(preg2)
+        .preg2(preg2),
+        .num_execute(num_execute)
     );
 
     logic [$clog2(ROB_ENTRIES):0] num_free;
-    rob rob(clk, reset, num_free);
-    busylist bl(clk, reset);
+    reorder_buffer r[ROB_ENTRIES - 1:0];
 
+    logic branch_shootdown;
+    logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag;
+    rat rtable;
+
+	/*
+	 * End of the in-order part of the pipeline, complete zero-cycle
+	 * instructions, rename the registers in the temporary RAT and
+	 * issue other instructions to issue queue.
+	 */
     uop_issue ui (
         .clk(clk),
         .reset(reset),
@@ -68,14 +88,21 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
         .next_stalled(1'b0),
         .valid(issue_valid),
         .prev_valid(decode_valid),
-        .enabled(stage_enabled[2])
+        .enabled(stage_enabled[2]),
+        .instr_1(decoded_1),
+        .instr_2(decoded_2),
+        .rob(r),
+        .rtable(rtable),
+        .num_execute(num_execute),
+        .preg1(preg1),
+        .preg2(preg2)
     );
 
     always @(posedge clk) begin
         if(fetch_valid) begin
             $display("fetched %x %x %x %x", instruction_1.instruction, instruction_2.instruction, instruction_1.branch_tag, instruction_2.branch_tag);
         end
-        if(decode_valid && (!decoded_1.is_noop && !decoded_1.is_noop && !(decoded_1.rs_station == 0 || decoded_2.rs_station == 0))) begin
+        if(decode_valid && (!decoded_1.is_noop || !decoded_1.is_noop && !(decoded_1.rs_station == 0 || decoded_2.rs_station == 0))) begin
             $display("decoded - %x %x %x %x", decoded_1.rs_station, decoded_2.rs_station, preg1, preg2);
         end
     end

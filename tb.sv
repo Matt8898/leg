@@ -36,6 +36,15 @@ module test;
         uops[1][3-:2] = 'h2;
         uops[1][1] = 'h1;
         uops[1][0] = 'h1;
+
+        uops[2][71-:32] = 'h25270004;
+        uops[2][39-:2] = 'h2;
+        uops[2][37] = 'h1;
+        uops[2][36] = 'h1;
+        uops[2][35-:32] = 'h0;
+        uops[2][3-:2] = 'h2;
+        uops[2][1] = 'h1;
+        uops[2][0] = 'h1;
         $display("%x", uops[0]);
     end
 

@@ -16,6 +16,7 @@ always_comb begin
     decoded.branch_tag = instruction.branch_tag;
     decoded.macroop_start = instruction.macroop_start;
     decoded.macroop_end = instruction.macroop_end;
+    decoded.reg_reg_mov = 0;
     case(op[31:26])
         6'b001001://addiu
         begin
@@ -97,6 +98,8 @@ always_comb begin
                    decoded.immediate = 0;
                    decoded.has_target = 1;
                    decoded.alu_fn = 0;
+                   $display("addiu: %x %x %x %x", decoded.register_1, decoded.register_2, decoded.register_target, (decoded.register_1 == 0 || decoded.register_2 == 0) && (decoded.register_target != 0));
+                   decoded.reg_reg_mov = (decoded.register_1 == 0 || decoded.register_2 == 0) && (decoded.register_target != 0);
                 end
                 6'b100100: begin
                    decoded.register_target = op[15:11];
@@ -161,5 +164,6 @@ always_comb begin
     end else begin
         decoded.is_noop = 0;
     end
+    decoded.is_zerocycle = decoded.is_noop | decoded.reg_reg_mov;
 end
 endmodule
