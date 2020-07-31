@@ -13,14 +13,32 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
     fetched_instruction instruction_1;
     fetched_instruction instruction_2;
 
+    /*
+     * pipeline logic
+     * the variables that describe a generic stage are:
+     * valid, stalled and enabled
+     *
+     * a stage is stalled if the stage after it is stalled and
+     * the stage's output is valid, this is because if the output
+     * of the stage isn't valid it means it already passed its
+     * output to the next stage, so it's able to take more input,
+     * or stage-specific conditions are met (such as being out of registers)
+     *
+     * a stage is enabled if it's not stalled and the previous' stage
+     * input is valid.
+     * if a stage is not enabled but the one after it is then the stage's
+     * output is not valid anymore, because the next stage is processing it.
+     */
+
+    //pipeline variables
     logic stage_enabled[NUM_STAGES - 1:0];
-    assign stage_enabled[0] = !decode_stalled;
+    assign stage_enabled[0] = !fetch_stalled;
     assign stage_enabled[1] = (fetch_valid && !decode_stalled);
     assign stage_enabled[2] = (decode_valid && !issue_stalled);
 
-	/*
-	 * fetch instructions from the uop buffer.
-	 */
+    /*
+     * fetch instructions from the uop buffer.
+     */
     uop_fetch uf(
         .clk(clk),
         .reset(reset),
@@ -43,12 +61,12 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
     logic [$clog2(NUM_PREGS) - 1:0] preg2;
     logic [1:0] num_execute;
 
-	/*
-	 * Decode the instructions while also getting the necessary physical
-	 * registers for them.
-	 * TODO: maybe move the freelist out of this module to make freeing
-	 * registers in the commit stage cleaner.
-	 */
+    /*
+     * Decode the instructions while also getting the necessary physical
+     * registers for them.
+     * TODO: maybe move the freelist out of this module to make freeing
+     * registers in the commit stage cleaner.
+     */
     uop_decode ud (
         .clk(clk),
         .reset(reset),
@@ -75,11 +93,11 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
     logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag;
     rat rtable;
 
-	/*
-	 * End of the in-order part of the pipeline, complete zero-cycle
-	 * instructions, rename the registers in the temporary RAT and
-	 * issue other instructions to issue queue.
-	 */
+    /*
+     * End of the in-order part of the pipeline, complete zero-cycle
+     * instructions, rename the registers in the temporary RAT and
+     * issue other instructions to issue queue.
+     */
     uop_issue ui (
         .clk(clk),
         .reset(reset),
@@ -98,6 +116,7 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
         .preg2(preg2)
     );
 
+    //debug logic
     always @(posedge clk) begin
         if(fetch_valid) begin
             $display("fetched %x %x %x %x", instruction_1.instruction, instruction_2.instruction, instruction_1.branch_tag, instruction_2.branch_tag);

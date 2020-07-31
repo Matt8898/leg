@@ -150,7 +150,7 @@ always @(posedge clk) begin
             //fill reorder buffer entries
             if(instr_1.rs_station != 0 && !instr_1.is_noop) begin
                 rob[rob_entry].valid <= 1;
-                //if the instruction is zero-cycle (register register move for examble, setting the rob entries is all that's necessary)
+                //if the instruction is zero-cycle (register register move for example, setting the rob entries is all that's necessary)
                 rob[rob_entry].busy <= !instr_1.is_zerocycle;
                 rob[rob_entry].preg <= preg1;
                 rob[rob_entry].areg <= instr_1.register_target;
@@ -167,7 +167,8 @@ always @(posedge clk) begin
 
             //TODO issue to issue queues and check registers
 
-            //handle dependencies in the rat
+            //map registers in the current rat, making sure to handle two
+            //instructions writing to the same register.
             if(num_execute == 2) begin
                 if(instr_1.register_target == instr_2.register_target) begin
                     map(instr_2.register_target, preg2, instr_2.branch_tag);

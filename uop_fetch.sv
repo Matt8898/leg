@@ -12,8 +12,9 @@ module uop_fetch (
     output fetched_instruction instruction_2
 );
 
+
 always_comb begin
-    stalled = prev_valid && next_stalled;
+    stalled = valid && next_stalled;
 end
 
 always @(posedge clk) begin

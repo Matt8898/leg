@@ -44,9 +44,10 @@ freelist freelist(
 logic i_stalled;
 
 always_comb begin
-    stalled = (prev_valid && next_stalled);
+    stalled = (valid && next_stalled);
 end
 
+//number of registers that need to be pulled
 logic [1:0] num_registers;
 assign num_registers =
     ((i_decoded_1.is_noop && i_decoded_2.is_noop) || (i_decoded_1.rs_station == 0 && i_decoded_2.rs_station == 0)) ?
@@ -62,19 +63,16 @@ always @(posedge clk) begin
     end else begin
         if(enabled) begin
             valid <= prev_valid;
+            //allocate registers and pipeline the results forward
             freelist.allocate(num_registers);
+            decoded_1 <= i_decoded_1;
+            decoded_2 <= i_decoded_2;
+            preg1 <= i_preg1;
+            preg2 <= i_preg2;
+            num_execute <= num_registers;
         end else if(next_enabled) begin
             valid <= 0;
         end
     end
 end
-
-always @(posedge clk) begin
-    decoded_1 <= i_decoded_1;
-    decoded_2 <= i_decoded_2;
-    preg1 <= i_preg1;
-    preg2 <= i_preg2;
-    num_execute <= num_registers;
-end
-
 endmodule
