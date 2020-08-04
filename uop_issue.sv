@@ -57,37 +57,37 @@ end
  * rat logic
  */
 generate
-genvar i;
 genvar j;
-for(i = 0; i < NUM_AREGS; i++) begin
+genvar k;
+for(j = 0; j < NUM_AREGS; j++) begin
     always @(posedge clk) begin
         if(reset) begin
-            rtable.reg_table[i] <= 0;
+            rtable.reg_table[j] <= 0;
         end
     end
 end
-for(i = 0; i < NUM_AREGS; i++) begin
-    for(j = 0; j < MAX_PREDICT_DEPTH; j++) begin
+for(j = 0; j < NUM_AREGS; j++) begin
+    for(k = 0; k < MAX_PREDICT_DEPTH; k++) begin
         always @(posedge clk) begin
             if(reset) begin
-                rtable.branch_tables[j][i] <= 0;
+                rtable.branch_tables[k][j] <= 0;
             end
         end
     end
 end
-for(j = 0; j < MAX_PREDICT_DEPTH; j++) begin
+for(k = 0; k < MAX_PREDICT_DEPTH; k++) begin
     always @(posedge clk) begin
         if(reset) begin
-            rtable.branch_table_valid[j] <= 0;
+            rtable.branch_table_valid[k] <= 0;
         end
     end
 end
 
-for(j = 0; j < MAX_PREDICT_DEPTH; j++) begin
+for(k = 0; k < MAX_PREDICT_DEPTH; k++) begin
     always @(posedge clk) begin
         if(branch_shootdown) begin
-            if((j - 1) >= shootdown_branch_tag) begin
-                rtable.branch_table_valid[j] <= 0;
+            if((k - 1) >= shootdown_branch_tag) begin
+                rtable.branch_table_valid[k] <= 0;
             end
         end
     end
@@ -138,6 +138,9 @@ task rat_get(input logic [$clog2(NUM_AREGS) - 1:0] arch, input logic [MAX_PREDIC
     end
 endtask
 
+/*
+ * Stage logic
+ */
 always @(posedge clk) begin
     if(reset || clear) begin
         valid <= 0;

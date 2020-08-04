@@ -26,7 +26,7 @@ always_comb begin
     i_num_free = 0;
     for(i = 0; i < NUM_PREGS; i = i + 1) begin
         if(list[i] == 1) begin
-            i_num_free = num_free + 1;
+            i_num_free = i_num_free + 1;
         end
     end
 end
@@ -59,24 +59,30 @@ always_comb begin
     end
 end
 
-always @(posedge clk) begin
-    if(reset) begin
-        for(i = 0; i < NUM_PREGS; i = i + 1) begin
-            list[i] <= 1;
-            for(j = 0; j < MAX_PREDICT_DEPTH; j = j + 1) begin
-                branch_lists[j][i] <= 1;
-            end
-        end
-    end
+genvar k;
+genvar l;
+generate
+	for(k = 0; k < NUM_PREGS; k = k + 1) begin
+		always @(posedge clk) begin
+			if(reset) list[k] <= 1;
+		end
+		for(l = 0; l < MAX_PREDICT_DEPTH; l = l + 1) begin
+			always @(posedge clk) begin
+				if(reset) branch_lists[l][k] <= 1;
+			end
+		end
+	end
+endgenerate
 
-    if(branch_shootdown) begin
+always @(posedge clk) begin
+	if(branch_shootdown) begin
         list <= list | ~(branch_shootdown_mask);
     end
 end
 
 task allocate(input logic [1:0] _num_pull);
     begin
-        assert(i_num_free >= _num_pull);
+//        assert(i_num_free >= _num_pull);
         if(_num_pull == 1) begin
             list[first_free] <= 0;
             if(branch_tag_1 != 0) begin
