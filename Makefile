@@ -10,7 +10,7 @@ build/%.sv: %.sv
 preprocess: $(PROCESSED)
 
 lint: $(PROCESSED)
-	cd build && $(foreach x, $(SVFILES), verilator --default-language 1800-2017 -Wall -Wno-DECLFILENAME -Wno-UNUSED -Wno-WIDTH -Wno-STMTDLY -Wno-UNDRIVEN -Wno-PINCONNECTEMPTY --lint-only $(x);)
+	cd build && $(foreach x, $(SVFILES), verilator --default-language 1800-2017 -Wall -Wno-DECLFILENAME -Wno-UNUSED -Wno-WIDTH -Wno-STMTDLY -Wno-UNDRIVEN -Wno-PINCONNECTEMPTY -Wno-MULTIDRIVEN --lint-only $(x);)
 
 build/cpu.v: $(PROCESSED)
 	-rm build/cpu.v

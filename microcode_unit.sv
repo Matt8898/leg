@@ -97,8 +97,12 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
      * End of the in-order part of the pipeline, complete zero-cycle
      * instructions, rename the registers in the temporary RAT and
      * issue other instructions to issue queue.
+	 *
+     * Write register mappings to the retirement rat,
+	 * issue branch shootdown signals and perform all
+	 * non-reversible operations.
      */
-    uop_issue ui (
+    uop_issue_commit uic (
         .clk(clk),
         .reset(reset),
         .clear(flush_pipeline),

@@ -2,7 +2,7 @@
 #include "instruction.sv"
 #include "rob.sv"
 
-module uop_issue(
+module uop_issue_commit (
     input logic clk,
     input logic reset,
     input logic clear,
@@ -152,8 +152,10 @@ always @(posedge clk) begin
             valid <= prev_valid;
             //fill reorder buffer entries
             if(instr_1.rs_station != 0 && !instr_1.is_noop) begin
+				$display("writing to rob entry %x", rob_entry);
                 rob[rob_entry].valid <= 1;
                 //if the instruction is zero-cycle (register register move for example, setting the rob entries is all that's necessary)
+				$display("instruction zero cycle: %x", instr_1.is_zerocycle);
                 rob[rob_entry].busy <= !instr_1.is_zerocycle;
                 rob[rob_entry].preg <= preg1;
                 rob[rob_entry].areg <= instr_1.register_target;
@@ -185,6 +187,25 @@ always @(posedge clk) begin
             rob_entry <= rob_entry + num_execute;
         end
     end
+end
+
+logic [$clog2(ROB_ENTRIES) - 1:0] commit_rob_entry;
+//the processor's actual renaming state at any given point
+logic [$clog2(NUM_PREGS) - 1:0] committed_rat[NUM_AREGS - 1:0];
+
+always @(posedge clk) begin
+	if(reset) begin
+		commit_rob_entry <= 0;
+	end else begin
+		$display("rob entry 0: %x %x", rob[commit_rob_entry].valid, rob[commit_rob_entry].busy);
+		if(rob[commit_rob_entry].valid && !rob[commit_rob_entry].busy) begin
+			$display("An instruction is ready to commit");
+			$display("Architectural register %x renamed to %x", rob[commit_rob_entry].areg, rob[commit_rob_entry].preg);
+			committed_rat[rob[commit_rob_entry].areg] <= rob[commit_rob_entry].preg;
+			rob[commit_rob_entry].valid <= 0;
+			rob[commit_rob_entry].busy <= 0;
+		end
+	end
 end
 
 endmodule
