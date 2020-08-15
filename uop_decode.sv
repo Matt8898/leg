@@ -13,7 +13,9 @@ module uop_decode (
     output decoded_instruction decoded_2,
     output logic [$clog2(NUM_PREGS) - 1:0] preg1,
     output logic [$clog2(NUM_PREGS) - 1:0] preg2,
-    output logic [1:0] num_execute
+    output logic [1:0] num_execute,
+	input logic branch_shootdown,
+	input logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag
 );
 
 decoded_instruction i_decoded_1;
@@ -23,9 +25,6 @@ instruction_decoder idec1(instruction_1, i_decoded_1);
 instruction_decoder idec2(instruction_2, i_decoded_2);
 
 logic [$clog2(NUM_PREGS):0] num_free;
-logic branch_shootdown;
-logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag;
-
 logic [$clog2(NUM_PREGS) - 1:0] i_preg1;
 logic [$clog2(NUM_PREGS) - 1:0] i_preg2;
 
@@ -58,8 +57,6 @@ assign i_stalled = num_free < num_registers;
 always @(posedge clk) begin
     if(reset || clear) begin
         valid <= 0;
-        branch_shootdown <= 0;
-        shootdown_branch_tag <= 0;
     end else begin
         if(enabled) begin
             valid <= prev_valid;

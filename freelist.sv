@@ -9,7 +9,11 @@ interface freelist (
     output logic [$clog2(NUM_PREGS) - 1:0] preg2,
     output logic [$clog2(NUM_PREGS):0] num_free,
     input logic branch_shootdown,
-    input logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag
+    input logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag,
+	input logic free1,
+	input logic free2,
+	input logic [$clog2(NUM_PREGS) - 1:0] free1_addr,
+	input logic [$clog2(NUM_PREGS) - 1:0] free2_addr
 );
 
 logic[NUM_PREGS - 1:0] list;
@@ -78,6 +82,11 @@ always @(posedge clk) begin
 	if(branch_shootdown) begin
         list <= list | ~(branch_shootdown_mask);
     end
+end
+
+always @(posedge clk) begin
+	if(free1) list[free1_addr] <= 1;
+	if(free2) list[free2_addr] <= 1;
 end
 
 task allocate(input logic [1:0] _num_pull);

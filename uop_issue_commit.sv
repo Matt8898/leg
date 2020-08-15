@@ -13,7 +13,9 @@ module uop_issue_commit (
     input logic [$clog2(NUM_PREGS) - 1:0] preg2,
     output reorder_buffer rob[ROB_ENTRIES - 1:0],
     inout rat rtable,
-    input logic [1:0] num_execute
+    input logic [1:0] num_execute,
+	output logic freelist_branch_shootdown,
+	output logic [MAX_PREDICT_DEPTH_BITS - 1:0] freelist_shootdown_branch_tag
 );
 
 logic [5:0] stall_time;
@@ -41,6 +43,8 @@ end
 
 always @(posedge clk) begin
     if(reset) begin
+        freelist_branch_shootdown <= 0;
+        freelist_shootdown_branch_tag <= 0;
         for(int i = 0; i < ROB_ENTRIES; i++) begin
             rob[i].valid <= 0;
             rob[i].busy <= 0;
@@ -152,10 +156,10 @@ always @(posedge clk) begin
             valid <= prev_valid;
             //fill reorder buffer entries
             if(instr_1.rs_station != 0 && !instr_1.is_noop) begin
-				$display("writing to rob entry %x", rob_entry);
+                $display("1: writing to rob entry %x", rob_entry);
                 rob[rob_entry].valid <= 1;
                 //if the instruction is zero-cycle (register register move for example, setting the rob entries is all that's necessary)
-				$display("instruction zero cycle: %x", instr_1.is_zerocycle);
+                $display("instruction 1 zero cycle: %x at rob entry %x", instr_1.is_zerocycle, rob_entry);
                 rob[rob_entry].busy <= !instr_1.is_zerocycle;
                 rob[rob_entry].preg <= preg1;
                 rob[rob_entry].areg <= instr_1.register_target;
@@ -163,6 +167,9 @@ always @(posedge clk) begin
                 rob[rob_entry].macroop_end <= instr_1.macroop_end;
             end
             if(instr_1.rs_station != 0 && !instr_1.is_noop) begin
+                $display("2: writing to rob entry %x", rob_entry + 1);
+                $display("instruction 2 zero cycle: %x at rob entry: %x", instr_2.is_zerocycle, rob_entry + 1);
+                rob[rob_entry + 1].valid <= 1;
                 rob[rob_entry + 1].busy <= !instr_2.is_zerocycle;
                 rob[rob_entry + 1].preg <= preg2;
                 rob[rob_entry + 1].areg <= instr_2.register_target;
@@ -194,18 +201,45 @@ logic [$clog2(ROB_ENTRIES) - 1:0] commit_rob_entry;
 logic [$clog2(NUM_PREGS) - 1:0] committed_rat[NUM_AREGS - 1:0];
 
 always @(posedge clk) begin
-	if(reset) begin
-		commit_rob_entry <= 0;
-	end else begin
-		$display("rob entry 0: %x %x", rob[commit_rob_entry].valid, rob[commit_rob_entry].busy);
-		if(rob[commit_rob_entry].valid && !rob[commit_rob_entry].busy) begin
-			$display("An instruction is ready to commit");
-			$display("Architectural register %x renamed to %x", rob[commit_rob_entry].areg, rob[commit_rob_entry].preg);
-			committed_rat[rob[commit_rob_entry].areg] <= rob[commit_rob_entry].preg;
-			rob[commit_rob_entry].valid <= 0;
-			rob[commit_rob_entry].busy <= 0;
-		end
-	end
+    if(reset) begin
+        commit_rob_entry <= 0;
+    end else begin
+        $display("1: rob entry 0: %x %x %x", rob[commit_rob_entry].valid, rob[commit_rob_entry].busy, commit_rob_entry);
+        $display("2: rob entry 1: %x %x %x", rob[commit_rob_entry + 1].valid, rob[commit_rob_entry + 1].busy, commit_rob_entry + 1);
+        if(rob[commit_rob_entry].valid && !rob[commit_rob_entry].busy) begin
+            $display("1: An instruction is ready to commit");
+            $display("1: Architectural register %x renamed to %x", rob[commit_rob_entry].areg, rob[commit_rob_entry].preg);
+            /*
+             * Check if an architectural register has been written to by
+             * another instruction before, if this is true then we can free
+             * the previous physical register, doing this holds up registers
+             * for longer than necessary but makes the logic a lot simpler.
+             */
+            if(committed_rat[rob[commit_rob_entry].areg]) begin
+                $display("1: freeing register %x", committed_rat[rob[commit_rob_entry].preg]);
+            end
+            committed_rat[rob[commit_rob_entry].areg] <= rob[commit_rob_entry].preg;
+            rob[commit_rob_entry].valid <= 0;
+            rob[commit_rob_entry].busy <= 0;
+        end
+
+        if(rob[commit_rob_entry + 1].valid && !rob[commit_rob_entry + 1].busy) begin
+                $display("2: An instruction is ready to commit");
+                $display("2: Architectural register %x renamed to %x", rob[commit_rob_entry + 1].areg, rob[commit_rob_entry + 1].preg);
+                /*
+                 * Check if an architectural register has been written to by
+                 * another instruction before, if this is true then we can free
+                 * the previous physical register, doing this holds up registers
+                 * for longer than necessary but makes the logic a lot simpler.
+                 */
+                if(committed_rat[rob[commit_rob_entry + 1].areg]) begin
+                    $display("2: freeing register %x", committed_rat[rob[commit_rob_entry + 1].preg]);
+                end
+                committed_rat[rob[commit_rob_entry + 1].areg] <= rob[commit_rob_entry + 1].preg;
+                rob[commit_rob_entry + 1].valid <= 0;
+                rob[commit_rob_entry + 1].busy <= 0;
+            end
+    end
 end
 
 endmodule

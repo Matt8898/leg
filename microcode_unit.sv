@@ -60,6 +60,8 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
     logic [$clog2(NUM_PREGS) - 1:0] preg1;
     logic [$clog2(NUM_PREGS) - 1:0] preg2;
     logic [1:0] num_execute;
+	logic branch_shootdown;
+	logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag;
 
     /*
      * Decode the instructions while also getting the necessary physical
@@ -83,7 +85,9 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
         .decoded_2(decoded_2),
         .preg1(preg1),
         .preg2(preg2),
-        .num_execute(num_execute)
+        .num_execute(num_execute),
+		.branch_shootdown(branch_shootdown),
+		.shootdown_branch_tag(shootdown_branch_tag)
     );
 
     logic [$clog2(ROB_ENTRIES):0] num_free;
@@ -117,7 +121,9 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
         .rtable(rtable),
         .num_execute(num_execute),
         .preg1(preg1),
-        .preg2(preg2)
+        .preg2(preg2),
+		.freelist_branch_shootdown(branch_shootdown),
+		.freelist_shootdown_branch_tag(shootdown_branch_tag)
     );
 
     //debug logic
