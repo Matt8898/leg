@@ -15,7 +15,11 @@ module uop_issue_commit (
     inout rat rtable,
     input logic [1:0] num_execute,
 	output logic freelist_branch_shootdown,
-	output logic [MAX_PREDICT_DEPTH_BITS - 1:0] freelist_shootdown_branch_tag
+	output logic [MAX_PREDICT_DEPTH_BITS - 1:0] freelist_shootdown_branch_tag,
+	output logic free1,
+	output logic free2,
+	output logic [$clog2(NUM_PREGS) - 1:0] free1_addr,
+	output logic [$clog2(NUM_PREGS) - 1:0] free2_addr
 );
 
 logic [5:0] stall_time;
@@ -43,6 +47,8 @@ end
 
 always @(posedge clk) begin
     if(reset) begin
+        free1 <= 0;
+        free2 <= 0;
         freelist_branch_shootdown <= 0;
         freelist_shootdown_branch_tag <= 0;
         for(int i = 0; i < ROB_ENTRIES; i++) begin
@@ -215,10 +221,12 @@ always @(posedge clk) begin
              * the previous physical register, doing this holds up registers
              * for longer than necessary but makes the logic a lot simpler.
              */
-            if(committed_rat[rob[commit_rob_entry].areg]) begin
+            if(committed_rat[rob[commit_rob_entry].areg] != 0) begin
                 $display("1: freeing register %x", committed_rat[rob[commit_rob_entry].preg]);
             end
-            committed_rat[rob[commit_rob_entry].areg] <= rob[commit_rob_entry].preg;
+            if((rob[commit_rob_entry + 1].valid && !rob[commit_rob_entry + 1].busy) && (rob[commit_rob_entry + 1].areg != rob[commit_rob_entry].areg)) begin
+                committed_rat[rob[commit_rob_entry].areg] <= rob[commit_rob_entry].preg;
+            end
             rob[commit_rob_entry].valid <= 0;
             rob[commit_rob_entry].busy <= 0;
         end
@@ -232,8 +240,11 @@ always @(posedge clk) begin
                  * the previous physical register, doing this holds up registers
                  * for longer than necessary but makes the logic a lot simpler.
                  */
-                if(committed_rat[rob[commit_rob_entry + 1].areg]) begin
+                if(committed_rat[rob[commit_rob_entry + 1].areg] != 0) begin
                     $display("2: freeing register %x", committed_rat[rob[commit_rob_entry + 1].preg]);
+                end
+                if(rob[commit_rob_entry + 1].areg == rob[commit_rob_entry].areg) begin
+                    $display("2: freeing register %x", rob[commit_rob_entry].preg);
                 end
                 committed_rat[rob[commit_rob_entry + 1].areg] <= rob[commit_rob_entry + 1].preg;
                 rob[commit_rob_entry + 1].valid <= 0;

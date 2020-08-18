@@ -15,7 +15,11 @@ module uop_decode (
     output logic [$clog2(NUM_PREGS) - 1:0] preg2,
     output logic [1:0] num_execute,
 	input logic branch_shootdown,
-	input logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag
+	input logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag,
+	input logic free1,
+	input logic free2,
+	input logic [$clog2(NUM_PREGS) - 1:0] free1_addr,
+	input logic [$clog2(NUM_PREGS) - 1:0] free2_addr
 );
 
 decoded_instruction i_decoded_1;
@@ -37,7 +41,11 @@ freelist freelist(
    .preg2(i_preg2),
    .num_free(num_free),
    .branch_shootdown(branch_shootdown),
-   .shootdown_branch_tag(shootdown_branch_tag)
+   .shootdown_branch_tag(shootdown_branch_tag),
+   .free1(free1),
+   .free2(free2),
+   .free1_addr(free1_addr),
+   .free2_addr(free2_addr)
 );
 
 logic i_stalled;

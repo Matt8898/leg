@@ -60,8 +60,13 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
     logic [$clog2(NUM_PREGS) - 1:0] preg1;
     logic [$clog2(NUM_PREGS) - 1:0] preg2;
     logic [1:0] num_execute;
-	logic branch_shootdown;
-	logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag;
+    logic branch_shootdown;
+    logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag;
+
+    input logic free1;
+	input logic free2;
+	input logic [$clog2(NUM_PREGS) - 1:0] free1_addr;
+	input logic [$clog2(NUM_PREGS) - 1:0] free2_addr;
 
     /*
      * Decode the instructions while also getting the necessary physical
@@ -86,8 +91,12 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
         .preg1(preg1),
         .preg2(preg2),
         .num_execute(num_execute),
-		.branch_shootdown(branch_shootdown),
-		.shootdown_branch_tag(shootdown_branch_tag)
+        .branch_shootdown(branch_shootdown),
+        .shootdown_branch_tag(shootdown_branch_tag),
+        .free1(free1),
+        .free2(free2),
+        .free1_addr(free1_addr),
+        .free2_addr(free2_addr)
     );
 
     logic [$clog2(ROB_ENTRIES):0] num_free;
@@ -101,10 +110,10 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
      * End of the in-order part of the pipeline, complete zero-cycle
      * instructions, rename the registers in the temporary RAT and
      * issue other instructions to issue queue.
-	 *
+     *
      * Write register mappings to the retirement rat,
-	 * issue branch shootdown signals and perform all
-	 * non-reversible operations.
+     * issue branch shootdown signals and perform all
+     * non-reversible operations.
      */
     uop_issue_commit uic (
         .clk(clk),
@@ -122,8 +131,12 @@ module microcode_unit (input logic clk, input logic reset, output logic [$clog2(
         .num_execute(num_execute),
         .preg1(preg1),
         .preg2(preg2),
-		.freelist_branch_shootdown(branch_shootdown),
-		.freelist_shootdown_branch_tag(shootdown_branch_tag)
+        .freelist_branch_shootdown(branch_shootdown),
+        .freelist_shootdown_branch_tag(shootdown_branch_tag),
+        .free1(free1),
+        .free2(free2),
+        .free1_addr(free1_addr),
+        .free2_addr(free2_addr)
     );
 
     //debug logic
