@@ -223,6 +223,8 @@ always @(posedge clk) begin
              */
             if(committed_rat[rob[commit_rob_entry].areg] != 0) begin
                 $display("1: freeing register %x", committed_rat[rob[commit_rob_entry].preg]);
+                free1_addr <= rob[commit_rob_entry].preg;
+                free1 <= 1;
             end
             if((rob[commit_rob_entry + 1].valid && !rob[commit_rob_entry + 1].busy) && (rob[commit_rob_entry + 1].areg != rob[commit_rob_entry].areg)) begin
                 committed_rat[rob[commit_rob_entry].areg] <= rob[commit_rob_entry].preg;
@@ -242,9 +244,13 @@ always @(posedge clk) begin
                  */
                 if(committed_rat[rob[commit_rob_entry + 1].areg] != 0) begin
                     $display("2: freeing register %x", committed_rat[rob[commit_rob_entry + 1].preg]);
+                    free2 <= 1;
+                    free2_addr <= rob[commit_rob_entry + 1].preg;
                 end
                 if(rob[commit_rob_entry + 1].areg == rob[commit_rob_entry].areg) begin
                     $display("2: freeing register %x", rob[commit_rob_entry].preg);
+                    free1 <= 1;
+                    free1_addr <= rob[commit_rob_entry].preg;
                 end
                 committed_rat[rob[commit_rob_entry + 1].areg] <= rob[commit_rob_entry + 1].preg;
                 rob[commit_rob_entry + 1].valid <= 0;
@@ -252,5 +258,9 @@ always @(posedge clk) begin
             end
     end
 end
+    always @(posedge clk) begin
+        if(free1) free1 <= 0;
+        if(free2) free2 <= 0;
+    end
 
 endmodule

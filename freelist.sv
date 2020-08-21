@@ -85,12 +85,18 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
-	if(free1) list[free1_addr] <= 1;
-	if(free2) list[free2_addr] <= 1;
+	if(free1) begin
+		$display("freelist: freeing register: %x", free1_addr);
+		list[free1_addr] <= 1;
+	end
+	if(free2) begin
+		$display("freelist: freeing register: %x", free2_addr);
+		list[free2_addr] <= 1;
+	end
 end
 
 task allocate(input logic [1:0] _num_pull);
-    begin
+	begin
 //        assert(i_num_free >= _num_pull);
         if(_num_pull == 1) begin
             list[first_free] <= 0;

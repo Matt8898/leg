@@ -18,16 +18,18 @@ module test;
         for(int i = 0; i < 128; i++) begin
             uops[i] = 0;
         end
+		for(int i = 0; i < 20; i++) begin
+        uops[i][71-:32] = 'h1205021;
+        uops[i][39-:2] = 'h2;
+        uops[i][37] = 'h1;
+        uops[i][36] = 'h1;
+        uops[i][35-:32] = 'h1205021;
+        uops[i][3-:2] = 'h2;
+        uops[i][1] = 'h1;
+        uops[i][0] = 'h1;
+		end
 
-        uops[0][71-:32] = 'h1205021;
-        uops[0][39-:2] = 'h2;
-        uops[0][37] = 'h1;
-        uops[0][36] = 'h1;
-        uops[0][35-:32] = 'h1205021;
-        uops[0][3-:2] = 'h2;
-        uops[0][1] = 'h1;
-        uops[0][0] = 'h1;
-
+/*
         uops[1][71-:32] = 'h25270004;
         uops[1][39-:2] = 'h2;
         uops[1][37] = 'h1;
@@ -44,7 +46,7 @@ module test;
         uops[2][35-:32] = 'h0;
         uops[2][3-:2] = 'h2;
         uops[2][1] = 'h1;
-        uops[2][0] = 'h1;
+        uops[2][0] = 'h1;*/
         $display("%x", uops[0]);
     end
 

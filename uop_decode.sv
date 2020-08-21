@@ -14,12 +14,12 @@ module uop_decode (
     output logic [$clog2(NUM_PREGS) - 1:0] preg1,
     output logic [$clog2(NUM_PREGS) - 1:0] preg2,
     output logic [1:0] num_execute,
-	input logic branch_shootdown,
-	input logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag,
-	input logic free1,
-	input logic free2,
-	input logic [$clog2(NUM_PREGS) - 1:0] free1_addr,
-	input logic [$clog2(NUM_PREGS) - 1:0] free2_addr
+    input logic branch_shootdown,
+    input logic [MAX_PREDICT_DEPTH_BITS - 1:0] shootdown_branch_tag,
+    input logic free1,
+    input logic free2,
+    input logic [$clog2(NUM_PREGS) - 1:0] free1_addr,
+    input logic [$clog2(NUM_PREGS) - 1:0] free2_addr
 );
 
 decoded_instruction i_decoded_1;
@@ -74,6 +74,8 @@ always @(posedge clk) begin
             decoded_2 <= i_decoded_2;
             preg1 <= i_preg1;
             preg2 <= i_preg2;
+            $display("register pulled: 1: %x", i_preg1);
+            $display("register pulled: 2: %x", i_preg2);
             num_execute <= num_registers;
         end else if(next_enabled) begin
             valid <= 0;
